@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: mahjong-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LINE_CHANNEL_TOKEN
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_USER_ID
+        sync: false
+      - key: RICH_MENU_ID
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

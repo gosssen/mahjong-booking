@@ -22,7 +22,7 @@ LINE Bot + LIFF 麻將場次預約系統，適合小圈子（約 20 人）使用
 
 | 層 | 技術 | 部署 | 管理介面 |
 |----|------|------|----------|
-| 後端 | Spring Boot 3.4 + MyBatis | [GCP Compute Engine e2-micro](https://console.cloud.google.com)（Always Free） | [Console](https://console.cloud.google.com) |
+| 後端 | Spring Boot 3.4 + MyBatis | [Render.com](https://render.com)（免費，不需信用卡） | [Dashboard](https://dashboard.render.com) |
 | 資料庫 | PostgreSQL 16 | [Supabase](https://supabase.com)（免費） | [Dashboard](https://supabase.com/dashboard) |
 | 前端 | React 18 + TypeScript + Vite + Tailwind | [Vercel](https://vercel.com)（免費） | [Dashboard](https://vercel.com/dashboard) |
 | Bot / LIFF | LINE Messaging API SDK v9 / @line/liff v2 | LINE | [Developers Console](https://developers.line.biz) |
@@ -72,7 +72,7 @@ npm run dev
 
 ## 環境變數
 
-### 後端（/opt/mahjong/.env on GCP VM）
+### 後端（Render Environment Variables）
 
 | 變數 | 說明 |
 |------|------|
@@ -112,8 +112,8 @@ npm run dev
 
 | 服務 | 用途 | 連結 |
 |------|------|------|
-| GCP Console | 後端 VM 管理、logs | https://console.cloud.google.com |
-| DuckDNS | 免費 domain（HTTPS 用） | https://www.duckdns.org |
+| Render Dashboard | 後端部署、logs、環境變數管理 | https://dashboard.render.com |
+| UptimeRobot | 每5分鐘 ping 防止 Render 休眠 | https://uptimerobot.com |
 | Supabase Dashboard | 資料庫管理、SQL Editor | https://supabase.com/dashboard |
 | Vercel Dashboard | 前端部署、環境變數 | https://vercel.com/dashboard |
 | LINE Developers Console | Bot 設定、LIFF、Webhook | https://developers.line.biz |
