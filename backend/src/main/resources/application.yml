@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:mahjong_db}
-    username: ${DB_USER:mahjong}
-    password: ${DB_PASS:mahjong123}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mahjong_db}
+    username: ${SPRING_DATASOURCE_USERNAME:mahjong}
+    password: ${SPRING_DATASOURCE_PASSWORD:mahjong123}
     driver-class-name: org.postgresql.Driver
   sql:
     init:

@@ -22,9 +22,9 @@ LINE Bot + LIFF 麻將場次預約系統，適合小圈子（約 20 人）使用
 
 | 層 | 技術 | 部署 | 管理介面 |
 |----|------|------|----------|
-| 後端 | Spring Boot 3.4 + MyBatis | [Fly.io](https://fly.io) | [Dashboard](https://fly.io/dashboard) |
-| 資料庫 | PostgreSQL 16 | [Supabase](https://supabase.com) | [Dashboard](https://supabase.com/dashboard) |
-| 前端 | React 18 + TypeScript + Vite + Tailwind | [Vercel](https://vercel.com) | [Dashboard](https://vercel.com/dashboard) |
+| 後端 | Spring Boot 3.4 + MyBatis | [Koyeb](https://app.koyeb.com)（免費） | [Dashboard](https://app.koyeb.com) |
+| 資料庫 | PostgreSQL 16 | [Supabase](https://supabase.com)（免費） | [Dashboard](https://supabase.com/dashboard) |
+| 前端 | React 18 + TypeScript + Vite + Tailwind | [Vercel](https://vercel.com)（免費） | [Dashboard](https://vercel.com/dashboard) |
 | Bot / LIFF | LINE Messaging API SDK v9 / @line/liff v2 | LINE | [Developers Console](https://developers.line.biz) |
 | LINE OA 設定 | 回應設定、Rich Menu | — | [OA Manager](https://manager.line.biz) |
 
@@ -72,13 +72,13 @@ npm run dev
 
 ## 環境變數
 
-### 後端（Fly.io Secrets）
+### 後端（Koyeb Environment Variables）
 
 | 變數 | 說明 |
 |------|------|
 | `LINE_CHANNEL_TOKEN` | LINE Messaging API Channel Access Token |
 | `LINE_CHANNEL_SECRET` | LINE Messaging API Channel Secret |
-| `SPRING_DATASOURCE_URL` | PostgreSQL 連線字串 |
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC 連線字串（`jdbc:postgresql://...`） |
 | `SPRING_DATASOURCE_USERNAME` | DB 帳號 |
 | `SPRING_DATASOURCE_PASSWORD` | DB 密碼 |
 | `INITIAL_ADMIN_USER_ID` | 第一個管理員的 LINE userId |
@@ -112,7 +112,7 @@ npm run dev
 
 | 服務 | 用途 | 連結 |
 |------|------|------|
-| Fly.io Dashboard | 後端部署、logs、secrets 管理 | https://fly.io/dashboard |
+| Koyeb Dashboard | 後端部署、logs、環境變數管理 | https://app.koyeb.com |
 | Supabase Dashboard | 資料庫管理、SQL Editor | https://supabase.com/dashboard |
 | Vercel Dashboard | 前端部署、環境變數 | https://vercel.com/dashboard |
 | LINE Developers Console | Bot 設定、LIFF、Webhook | https://developers.line.biz |
