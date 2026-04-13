@@ -14,4 +14,4 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=builder /build/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-Xmx256m", "-XX:+UseContainerSupport", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-Xmx256m", "-XX:+UseContainerSupport", "-jar", "app.jar"]
