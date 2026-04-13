@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mahjong.mapper.TableMapper">
+
+  <resultMap id="tableMap" type="com.mahjong.model.MahjongTable">
+    <id     property="id"          column="id"/>
+    <result property="sessionId"   column="session_id"/>
+    <result property="tableNumber" column="table_number"/>
+  </resultMap>
+
+  <select id="findBySessionId" resultMap="tableMap">
+    SELECT * FROM mahjong_tables WHERE session_id = #{sessionId}
+    ORDER BY table_number
+  </select>
+
+  <select id="findById" resultMap="tableMap">
+    SELECT * FROM mahjong_tables WHERE id = #{id}
+  </select>
+
+  <!-- 加鎖查詢，防止並發搶位（需在 @Transactional 內使用） -->
+  <select id="lockById" resultMap="tableMap">
+    SELECT * FROM mahjong_tables WHERE id = #{id} FOR UPDATE
+  </select>
+
+  <select id="nextTableNumber" resultType="int">
+    SELECT COALESCE(MAX(table_number), 0) + 1
+    FROM mahjong_tables
+    WHERE session_id = #{sessionId}
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO mahjong_tables (session_id, table_number)
+    VALUES (#{sessionId}, #{tableNumber})
+  </insert>
+
+  <!-- 只刪除無 CONFIRMED 預約的桌，回傳影響列數（0 = 刪除失敗有人） -->
+  <delete id="deleteIfEmpty">
+    DELETE FROM mahjong_tables
+    WHERE id = #{id}
+      AND NOT EXISTS (
+        SELECT 1 FROM reservations
+        WHERE table_id = #{id} AND status = 'CONFIRMED'
+      )
+  </delete>
+
+</mapper>

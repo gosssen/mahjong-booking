@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mahjong.mapper.BlockedDateMapper">
+
+  <resultMap id="blockedDateMap" type="com.mahjong.model.BlockedDate">
+    <id     property="id"          column="id"/>
+    <result property="blockedDate" column="blocked_date"/>
+    <result property="reason"      column="reason"/>
+    <result property="blockedBy"   column="blocked_by"/>
+    <result property="createdAt"   column="created_at"/>
+  </resultMap>
+
+  <select id="findBetween" resultMap="blockedDateMap">
+    SELECT * FROM blocked_dates
+    WHERE blocked_date BETWEEN #{from} AND #{to}
+    ORDER BY blocked_date
+  </select>
+
+  <select id="existsByDate" resultType="boolean">
+    SELECT COUNT(*) > 0 FROM blocked_dates WHERE blocked_date = #{blockedDate}
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO blocked_dates (blocked_date, reason, blocked_by)
+    VALUES (#{blockedDate}, #{reason}, #{blockedBy})
+  </insert>
+
+  <delete id="deleteById">
+    DELETE FROM blocked_dates WHERE id = #{id}
+  </delete>
+
+</mapper>

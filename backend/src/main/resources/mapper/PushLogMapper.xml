@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mahjong.mapper.PushLogMapper">
+
+  <select id="getCount" resultType="int">
+    SELECT COALESCE(count, 0)
+    FROM push_log
+    WHERE year_month = #{yearMonth}
+  </select>
+
+  <insert id="increment">
+    INSERT INTO push_log (year_month, count)
+    VALUES (#{yearMonth}, 1)
+    ON CONFLICT (year_month)
+    DO UPDATE SET count = push_log.count + 1
+  </insert>
+
+</mapper>

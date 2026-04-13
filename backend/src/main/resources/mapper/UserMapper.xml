@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mahjong.mapper.UserMapper">
+
+  <resultMap id="userMap" type="com.mahjong.model.User">
+    <id     property="id"          column="id"/>
+    <result property="lineUserId"  column="line_user_id"/>
+    <result property="displayName" column="display_name"/>
+    <result property="pictureUrl"  column="picture_url"/>
+    <result property="createdAt"   column="created_at"/>
+    <result property="updatedAt"   column="updated_at"/>
+  </resultMap>
+
+  <select id="findByLineUserId" resultMap="userMap">
+    SELECT * FROM users WHERE line_user_id = #{lineUserId}
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO users (line_user_id, display_name, picture_url)
+    VALUES (#{lineUserId}, #{displayName}, #{pictureUrl})
+  </insert>
+
+  <update id="updateProfile">
+    UPDATE users
+    SET display_name = #{displayName},
+        picture_url  = #{pictureUrl},
+        updated_at   = NOW()
+    WHERE line_user_id = #{lineUserId}
+  </update>
+
+</mapper>

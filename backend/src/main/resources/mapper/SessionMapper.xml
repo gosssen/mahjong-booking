@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mahjong.mapper.SessionMapper">
+
+  <!-- 預約 resultMap（含 displayName） -->
+  <resultMap id="reservationMap" type="com.mahjong.model.Reservation">
+    <id     property="id"          column="r_id"/>
+    <result property="sessionId"   column="r_session_id"/>
+    <result property="tableId"     column="r_table_id"/>
+    <result property="lineUserId"  column="r_line_user_id"/>
+    <result property="status"      column="r_status"/>
+    <result property="cancelledBy" column="r_cancelled_by"/>
+    <result property="cancelNote"  column="r_cancel_note"/>
+    <result property="createdAt"   column="r_created_at"/>
+    <result property="updatedAt"   column="r_updated_at"/>
+    <result property="displayName" column="u_display_name"/>
+  </resultMap>
+
+  <!-- 桌 resultMap（含預約清單） -->
+  <resultMap id="tableMap" type="com.mahjong.model.MahjongTable">
+    <id     property="id"          column="t_id"/>
+    <result property="sessionId"   column="t_session_id"/>
+    <result property="tableNumber" column="t_table_number"/>
+    <collection property="reservations" resultMap="reservationMap"/>
+  </resultMap>
+
+  <!-- 場次 resultMap（含桌清單） -->
+  <resultMap id="sessionMap" type="com.mahjong.model.Session">
+    <id     property="id"           column="s_id"/>
+    <result property="sessionDate"  column="s_session_date"/>
+    <result property="startTime"    column="s_start_time"/>
+    <result property="status"       column="s_status"/>
+    <result property="createdBy"    column="s_created_by"/>
+    <result property="cancelReason" column="s_cancel_reason"/>
+    <result property="reminderSent" column="s_reminder_sent"/>
+    <result property="createdAt"    column="s_created_at"/>
+    <collection property="tables" resultMap="tableMap"/>
+  </resultMap>
+
+  <sql id="fullJoin">
+    SELECT
+      s.id           AS s_id,
+      s.session_date AS s_session_date,
+      s.start_time   AS s_start_time,
+      s.status       AS s_status,
+      s.created_by   AS s_created_by,
+      s.cancel_reason  AS s_cancel_reason,
+      s.reminder_sent  AS s_reminder_sent,
+      s.created_at     AS s_created_at,
+      t.id           AS t_id,
+      t.session_id   AS t_session_id,
+      t.table_number AS t_table_number,
+      r.id           AS r_id,
+      r.session_id   AS r_session_id,
+      r.table_id     AS r_table_id,
+      r.line_user_id AS r_line_user_id,
+      r.status       AS r_status,
+      r.cancelled_by AS r_cancelled_by,
+      r.cancel_note  AS r_cancel_note,
+      r.created_at   AS r_created_at,
+      r.updated_at   AS r_updated_at,
+      u.display_name AS u_display_name
+    FROM sessions s
+    LEFT JOIN mahjong_tables t  ON t.session_id = s.id
+    LEFT JOIN reservations   r  ON r.table_id   = t.id AND r.status = 'CONFIRMED'
+    LEFT JOIN users          u  ON u.line_user_id = r.line_user_id
+  </sql>
+
+  <select id="findOpenSessionsBetween" resultMap="sessionMap">
+    <include refid="fullJoin"/>
+    WHERE s.session_date BETWEEN #{from} AND #{to}
+      AND s.status = 'OPEN'
+    ORDER BY s.session_date, s.start_time, t.table_number
+  </select>
+
+  <select id="findById" resultMap="sessionMap">
+    <include refid="fullJoin"/>
+    WHERE s.id = #{id}
+    ORDER BY t.table_number
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO sessions (session_date, start_time, created_by)
+    VALUES (#{sessionDate}, #{startTime}, #{createdBy})
+  </insert>
+
+  <update id="updateTime">
+    UPDATE sessions SET start_time = #{startTime} WHERE id = #{id}
+  </update>
+
+  <update id="cancel">
+    UPDATE sessions
+    SET status        = 'CANCELLED',
+        cancel_reason = #{cancelReason}
+    WHERE id = #{id}
+  </update>
+
+  <select id="findForReminder" resultMap="sessionMap">
+    <include refid="fullJoin"/>
+    WHERE s.status        = 'OPEN'
+      AND s.reminder_sent = FALSE
+      AND s.session_date  = #{date}
+      AND s.start_time    BETWEEN #{minTime} AND #{maxTime}
+    ORDER BY s.start_time, t.table_number
+  </select>
+
+  <update id="markReminderSent">
+    UPDATE sessions SET reminder_sent = TRUE WHERE id = #{id}
+  </update>
+
+  <select id="findConfirmedUserIds" resultType="string">
+    SELECT DISTINCT r.line_user_id
+    FROM reservations r
+    WHERE r.session_id = #{sessionId}
+      AND r.status = 'CONFIRMED'
+  </select>
+
+</mapper>
