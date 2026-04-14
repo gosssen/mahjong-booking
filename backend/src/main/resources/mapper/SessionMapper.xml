@@ -117,4 +117,21 @@
       AND r.status = 'CONFIRMED'
   </select>
 
+  <select id="existsOpenSession" resultType="boolean">
+    SELECT COUNT(*) > 0
+    FROM sessions
+    WHERE session_date = #{date}
+      AND start_time   = #{time}
+      AND status       = 'OPEN'
+  </select>
+
+  <select id="findOpenSessionId" resultType="long">
+    SELECT id
+    FROM sessions
+    WHERE session_date = #{date}
+      AND start_time   = #{time}
+      AND status       = 'OPEN'
+    LIMIT 1
+  </select>
+
 </mapper>

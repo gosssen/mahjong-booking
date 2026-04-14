@@ -24,6 +24,7 @@ mybatis:
 app:
   liff-id: ${LIFF_ID:2009787261-yiDOnOFw}
   initial-admin-user-id: ${INITIAL_ADMIN_USER_ID:}
+  developer-user-id: ${DEVELOPER_USER_ID:}    # 開發人員帳號，擁有所有權限且不可被移除/修改
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:https://mahjong-booking.vercel.app}
   rich-menu-id: ${RICH_MENU_ID:}
 

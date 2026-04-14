@@ -1,6 +1,7 @@
 package com.mahjong.controller;
 
 import com.mahjong.dto.AddAdminRequest;
+import com.mahjong.dto.ApplySessionRequest;
 import com.mahjong.dto.BlockDateRequest;
 import com.mahjong.dto.BookRequest;
 import com.mahjong.dto.CancelRequest;
@@ -8,6 +9,7 @@ import com.mahjong.dto.CreateSessionRequest;
 import com.mahjong.dto.MeResponse;
 import com.mahjong.dto.MoveTableRequest;
 import com.mahjong.dto.PushSessionRequest;
+import com.mahjong.dto.ReviewSessionRequestDto;
 import com.mahjong.dto.SwapRequest;
 import com.mahjong.dto.UpdateTimeRequest;
 import com.mahjong.mapper.AdminMapper;
@@ -18,6 +20,7 @@ import com.mahjong.model.BlockedDate;
 import com.mahjong.model.MahjongTable;
 import com.mahjong.model.Reservation;
 import com.mahjong.model.Session;
+import com.mahjong.model.SessionRequest;
 import com.mahjong.model.User;
 import com.mahjong.service.AdminService;
 import com.mahjong.service.AuthService;
@@ -25,6 +28,7 @@ import com.mahjong.service.BlockedDateService;
 import com.mahjong.service.PushService;
 import com.mahjong.service.ReservationService;
 import com.mahjong.service.RichMenuService;
+import com.mahjong.service.SessionRequestService;
 import com.mahjong.service.SessionService;
 import com.mahjong.service.UserService;
 import java.time.LocalDate;
@@ -57,6 +61,7 @@ public class ApiController {
   private final UserMapper userMapper;
   private final SessionService sessionService;
   private final SessionMapper sessionMapper;
+  private final SessionRequestService sessionRequestService;
   private final ReservationService reservationService;
   private final BlockedDateService blockedDateService;
   private final PushService pushService;
@@ -74,7 +79,17 @@ public class ApiController {
         userId,
         user != null ? user.getDisplayName() : userId,
         user != null ? user.getPictureUrl() : null,
-        adminService.isAdmin(userId));
+        adminService.isAdmin(userId),
+        adminService.isDeveloper(userId));
+  }
+
+  // ── 用戶名單（管理員查詢） ─────────────────────────────────
+
+  /** 查詢所有曾經互動的用戶（管理員用，用於選取設定管理員） */
+  @GetMapping("/users")
+  public List<User> getUsers(@RequestHeader("Authorization") String auth) {
+    requireAdmin(auth);
+    return userMapper.findAll();
   }
 
   // ── 場次（用戶可讀，管理員可寫） ───────────────────────────
@@ -290,19 +305,48 @@ public class ApiController {
       @RequestHeader("Authorization") String auth,
       @PathVariable Long id) {
     String callerId = requireAdmin(auth);
+    List<Admin> admins = adminMapper.findAll();
+    Admin target = admins.stream()
+        .filter(a -> a.getId().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
+
+    // 開發人員帳號不可被移除
+    if (adminService.isDeveloper(target.getLineUserId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "開發人員帳號不可移除");
+    }
+    if (target.getLineUserId().equals(callerId)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot remove yourself");
+    }
     if (adminMapper.count() <= 1) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot remove the last admin");
     }
-    List<Admin> admins = adminMapper.findAll();
-    admins.stream()
-        .filter(a -> a.getId().equals(id))
-        .findFirst()
-        .ifPresent(a -> {
-          if (a.getLineUserId().equals(callerId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot remove yourself");
-          }
-        });
     adminMapper.deleteById(id);
+  }
+
+  /** 管理員設定某用戶為管理員（透過 lineUserId） */
+  @PostMapping("/admins/by-user/{lineUserId}")
+  @ResponseStatus(HttpStatus.CREATED)
+  public void addAdminByUserId(
+      @RequestHeader("Authorization") String auth,
+      @PathVariable String lineUserId) {
+    String callerId = requireAdmin(auth);
+    adminService.addAdmin(lineUserId, callerId);
+  }
+
+  /** 管理員取消某用戶的管理員身分（透過 lineUserId） */
+  @DeleteMapping("/admins/by-user/{lineUserId}")
+  public void removeAdminByUserId(
+      @RequestHeader("Authorization") String auth,
+      @PathVariable String lineUserId) {
+    String callerId = requireAdmin(auth);
+    if (adminService.isDeveloper(lineUserId)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "開發人員帳號不可移除");
+    }
+    if (lineUserId.equals(callerId)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot remove yourself");
+    }
+    adminService.removeAdmin(lineUserId);
   }
 
   // ── Rich Menu（管理員，從伺服器端呼叫 LINE API）──────────────
@@ -318,6 +362,53 @@ public class ApiController {
     requireAdmin(auth);
     richMenuService.setDefaultForAll(menuId);
     return Map.of("status", "ok", "menuId", menuId);
+  }
+
+  // ── 場次申請（用戶送出 / 管理員審核） ──────────────────────
+
+  /** 用戶送出場次申請 */
+  @PostMapping("/session-requests")
+  @ResponseStatus(HttpStatus.CREATED)
+  public SessionRequest applySession(
+      @RequestHeader("Authorization") String auth,
+      @RequestBody ApplySessionRequest req) {
+    String userId = authService.extractUserId(auth);
+    return sessionRequestService.apply(req, userId);
+  }
+
+  /** 用戶查詢自己的申請記錄 */
+  @GetMapping("/session-requests/my")
+  public List<SessionRequest> getMySessionRequests(@RequestHeader("Authorization") String auth) {
+    String userId = authService.extractUserId(auth);
+    return sessionRequestService.getMyRequests(userId);
+  }
+
+  /** 管理員查詢所有待審申請 */
+  @GetMapping("/session-requests/pending")
+  public List<SessionRequest> getPendingRequests(@RequestHeader("Authorization") String auth) {
+    requireAdmin(auth);
+    return sessionRequestService.getPendingRequests();
+  }
+
+  /** 管理員查詢全部申請記錄 */
+  @GetMapping("/session-requests")
+  public List<SessionRequest> getAllRequests(@RequestHeader("Authorization") String auth) {
+    requireAdmin(auth);
+    return sessionRequestService.getAllRequests();
+  }
+
+  /** 管理員核准或拒絕申請 */
+  @PostMapping("/session-requests/{id}/review")
+  public SessionRequest reviewRequest(
+      @RequestHeader("Authorization") String auth,
+      @PathVariable Long id,
+      @RequestBody ReviewSessionRequestDto req) {
+    String userId = requireAdmin(auth);
+    if (req.approved()) {
+      return sessionRequestService.approve(id, userId, req.note());
+    } else {
+      return sessionRequestService.reject(id, userId, req.note());
+    }
   }
 
   // ── 私有輔助 ────────────────────────────────────────────────

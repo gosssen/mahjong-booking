@@ -1,5 +1,5 @@
 import api from './client'
-import type { MeResponse, Session, Reservation, MahjongTable } from './types'
+import type { MeResponse, Session, Reservation, MahjongTable, User, SessionRequestRecord } from './types'
 
 export * from './types'
 
@@ -97,4 +97,55 @@ export async function addAdmin(lineUserId: string) {
 
 export async function removeAdmin(id: number) {
   await api.delete(`/api/admins/${id}`)
+}
+
+// ── 用戶名單 ───────────────────────────────────────────────────
+
+export async function getUsers(): Promise<User[]> {
+  const res = await api.get<User[]>('/api/users')
+  return res.data
+}
+
+// 透過 lineUserId 設定 / 取消管理員
+export async function setAdminByUserId(lineUserId: string): Promise<void> {
+  await api.post(`/api/admins/by-user/${lineUserId}`)
+}
+
+export async function removeAdminByUserId(lineUserId: string): Promise<void> {
+  await api.delete(`/api/admins/by-user/${lineUserId}`)
+}
+
+// ── 場次申請 ───────────────────────────────────────────────────
+
+export async function applySession(
+  date: string,
+  startTime: string,
+  note?: string
+): Promise<SessionRequestRecord> {
+  const res = await api.post<SessionRequestRecord>('/api/session-requests', { date, startTime, note })
+  return res.data
+}
+
+export async function getMySessionRequests(): Promise<SessionRequestRecord[]> {
+  const res = await api.get<SessionRequestRecord[]>('/api/session-requests/my')
+  return res.data
+}
+
+export async function getPendingRequests(): Promise<SessionRequestRecord[]> {
+  const res = await api.get<SessionRequestRecord[]>('/api/session-requests/pending')
+  return res.data
+}
+
+export async function getAllSessionRequests(): Promise<SessionRequestRecord[]> {
+  const res = await api.get<SessionRequestRecord[]>('/api/session-requests')
+  return res.data
+}
+
+export async function reviewSessionRequest(
+  id: number,
+  approved: boolean,
+  note?: string
+): Promise<SessionRequestRecord> {
+  const res = await api.post<SessionRequestRecord>(`/api/session-requests/${id}/review`, { approved, note })
+  return res.data
 }

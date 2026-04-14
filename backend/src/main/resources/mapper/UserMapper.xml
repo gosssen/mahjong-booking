@@ -17,6 +17,10 @@
     SELECT * FROM users WHERE line_user_id = #{lineUserId}
   </select>
 
+  <select id="findAll" resultMap="userMap">
+    SELECT * FROM users ORDER BY display_name
+  </select>
+
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">
     INSERT INTO users (line_user_id, display_name, picture_url)
     VALUES (#{lineUserId}, #{displayName}, #{pictureUrl})

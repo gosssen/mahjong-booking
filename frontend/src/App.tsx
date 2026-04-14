@@ -3,11 +3,13 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import LoadingScreen from './components/LoadingScreen'
 import CalendarPage from './pages/CalendarPage'
 import MyReservations from './pages/MyReservations'
+import SessionRequestPage from './pages/SessionRequestPage'
 import SessionManage from './pages/admin/SessionManage'
 import TableLayout from './pages/admin/TableLayout'
 import BlockDate from './pages/admin/BlockDate'
 import PushCenter from './pages/admin/PushCenter'
 import AdminManage from './pages/admin/AdminManage'
+import SessionRequestAdmin from './pages/admin/SessionRequestAdmin'
 
 function AppRoutes() {
   const { me, loading, error } = useAuth()
@@ -31,20 +33,22 @@ function AppRoutes() {
           <Route path="/" element={<Navigate to="/calendar" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/my" element={<MyReservations />} />
+          <Route path="/session-requests" element={<SessionRequestPage />} />
           {isAdmin && <Route path="/admin/sessions" element={<SessionManage />} />}
           {isAdmin && <Route path="/admin/tables" element={<TableLayout />} />}
           {isAdmin && <Route path="/admin/block-dates" element={<BlockDate />} />}
           {isAdmin && <Route path="/admin/push" element={<PushCenter />} />}
           {isAdmin && <Route path="/admin/admins" element={<AdminManage />} />}
+          {isAdmin && <Route path="/admin/session-requests" element={<SessionRequestAdmin />} />}
           <Route path="*" element={<Navigate to="/calendar" replace />} />
         </Routes>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex overflow-x-auto">
         <NavLink
           to="/calendar"
           className={({ isActive }) =>
-            `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+            `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
           }
         >
           <span className="text-xl">📅</span>
@@ -53,18 +57,27 @@ function AppRoutes() {
         <NavLink
           to="/my"
           className={({ isActive }) =>
-            `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+            `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
           }
         >
           <span className="text-xl">📋</span>
           我的預約
+        </NavLink>
+        <NavLink
+          to="/session-requests"
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
+          }
+        >
+          <span className="text-xl">📝</span>
+          申請場次
         </NavLink>
         {isAdmin && (
           <>
             <NavLink
               to="/admin/sessions"
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
               }
             >
               <span className="text-xl">⚙️</span>
@@ -73,7 +86,7 @@ function AppRoutes() {
             <NavLink
               to="/admin/tables"
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
               }
             >
               <span className="text-xl">🀄</span>
@@ -82,11 +95,20 @@ function AppRoutes() {
             <NavLink
               to="/admin/push"
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
               }
             >
               <span className="text-xl">📢</span>
               推播
+            </NavLink>
+            <NavLink
+              to="/admin/session-requests"
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[56px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
+              }
+            >
+              <span className="text-xl">✅</span>
+              審核
             </NavLink>
           </>
         )}

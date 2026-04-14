@@ -35,4 +35,12 @@ public interface SessionMapper {
 
   /** 標記提醒已發送 */
   void markReminderSent(@Param("id") Long id);
+
+  /** 判斷指定日期時間是否已有 OPEN 場次 */
+  boolean existsOpenSession(@Param("date") java.time.LocalDate date,
+                            @Param("time") java.time.LocalTime time);
+
+  /** 查詢指定日期時間的 OPEN 場次 ID */
+  Long findOpenSessionId(@Param("date") java.time.LocalDate date,
+                         @Param("time") java.time.LocalTime time);
 }

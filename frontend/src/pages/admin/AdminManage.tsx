@@ -1,6 +1,7 @@
 import { logError } from '../../utils/logger'
 import { useEffect, useState } from 'react'
-import { getAdmins, addAdmin, removeAdmin } from '../../api'
+import { getAdmins, getUsers, setAdminByUserId, removeAdminByUserId, type User } from '../../api'
+import { useAuth } from '../../context/AuthContext'
 
 interface Admin {
   id: number
@@ -10,82 +11,120 @@ interface Admin {
 }
 
 export default function AdminManage() {
+  const { me } = useAuth()
   const [admins, setAdmins] = useState<Admin[]>([])
-  const [newUserId, setNewUserId] = useState('')
-  const [adding, setAdding] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null) // lineUserId currently being toggled
+
+  const adminUserIds = new Set(admins.map(a => a.lineUserId))
 
   function load() {
     setLoading(true)
-    getAdmins().then(setAdmins).catch((e) => logError("load failed", e)).finally(() => setLoading(false))
+    Promise.all([getAdmins(), getUsers()])
+      .then(([a, u]) => { setAdmins(a); setUsers(u) })
+      .catch((e) => logError('load failed', e))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [])
 
-  async function handleAdd() {
-    if (!newUserId.trim()) return
-    setAdding(true)
+  async function handleToggle(user: User) {
+    const isAdmin = adminUserIds.has(user.lineUserId)
+    if (!confirm(`確定要${isAdmin ? '取消' : '設定'} ${user.displayName} 的管理員身分嗎？`)) return
+    setBusy(user.lineUserId)
     try {
-      await addAdmin(newUserId.trim())
-      setNewUserId('')
+      if (isAdmin) {
+        await removeAdminByUserId(user.lineUserId)
+      } else {
+        await setAdminByUserId(user.lineUserId)
+      }
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '新增失敗')
+      alert(e.response?.data?.detail ?? (isAdmin ? '移除失敗' : '設定失敗'))
     } finally {
-      setAdding(false)
+      setBusy(null)
     }
   }
 
-  async function handleRemove(admin: Admin) {
-    if (!confirm(`確定要移除管理員 ${admin.displayName ?? admin.lineUserId} 嗎？`)) return
-    try {
-      await removeAdmin(admin.id)
-      load()
-    } catch (e: any) {
-      alert(e.response?.data?.detail ?? '移除失敗')
-    }
+  // Whether a user is a protected developer (cannot toggle)
+  function isProtected(lineUserId: string): boolean {
+    // If current user is developer, protect developer's own account
+    // The backend will also reject, but we disable the button proactively
+    return adminUserIds.has(lineUserId) && lineUserId === me?.userId && (me?.developer ?? false)
   }
 
   return (
     <div className="max-w-lg mx-auto p-4">
       <h1 className="text-lg font-bold text-gray-800 mb-4">管理員帳號</h1>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4">
-        <h2 className="font-medium text-gray-700 mb-3">新增管理員</h2>
-        <input
-          type="text"
-          placeholder="LINE userId（例如 Uxxxxxxxxxx）"
-          value={newUserId}
-          onChange={e => setNewUserId(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-        />
-        <button
-          onClick={handleAdd}
-          disabled={!newUserId.trim() || adding}
-          className="w-full py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
-        >
-          {adding ? '新增中...' : '新增管理員'}
-        </button>
-      </div>
+      {me?.developer && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+          你是開發人員，帳號受保護，無法被移除或修改。
+        </div>
+      )}
 
-      <h2 className="font-medium text-gray-700 mb-2">現有管理員</h2>
       {loading ? (
-        <p className="text-center text-gray-400 py-4">載入中...</p>
+        <p className="text-center text-gray-400 py-8">載入中...</p>
       ) : (
-        admins.map(a => (
-          <div key={a.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2 flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-800">{a.displayName ?? a.lineUserId}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{a.lineUserId}</p>
-            </div>
-            <button
-              onClick={() => handleRemove(a)}
-              className="text-sm text-red-400 hover:text-red-600"
-            >
-              移除
-            </button>
-          </div>
-        ))
+        <div className="space-y-2">
+          {users.map(user => {
+            const isAdmin = adminUserIds.has(user.lineUserId)
+            const isSelf = user.lineUserId === me?.userId
+            const protected_ = isProtected(user.lineUserId)
+            const isBusy = busy === user.lineUserId
+
+            return (
+              <div
+                key={user.lineUserId}
+                className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3"
+              >
+                {/* Avatar */}
+                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                  {user.pictureUrl ? (
+                    <img src={user.pictureUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg">👤</div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-medium text-gray-800 truncate">{user.displayName}</p>
+                    {isAdmin && (
+                      <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5">管理員</span>
+                    )}
+                    {protected_ && (
+                      <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">開發人員</span>
+                    )}
+                    {isSelf && !protected_ && (
+                      <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">你</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 truncate mt-0.5">{user.lineUserId}</p>
+                </div>
+
+                {/* Toggle button */}
+                <button
+                  onClick={() => handleToggle(user)}
+                  disabled={isBusy || protected_ || isSelf}
+                  className={`flex-shrink-0 text-sm px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed
+                    ${isAdmin
+                      ? 'border-red-200 text-red-500 hover:bg-red-50'
+                      : 'border-green-200 text-green-600 hover:bg-green-50'
+                    }`}
+                >
+                  {isBusy ? '...' : isAdmin ? '取消管理員' : '設為管理員'}
+                </button>
+              </div>
+            )
+          })}
+
+          {users.length === 0 && (
+            <p className="text-center text-gray-400 py-6">尚無用戶資料（需先有人互動過 Bot）</p>
+          )}
+        </div>
       )}
     </div>
   )

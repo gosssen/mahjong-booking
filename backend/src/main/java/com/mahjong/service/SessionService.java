@@ -48,6 +48,12 @@ public class SessionService {
   public Session create(CreateSessionRequest req, String createdBy) {
     validateTime(req.startTime());
 
+    // 服務層防重：同日同時間已有 OPEN 場次
+    if (sessionMapper.existsOpenSession(req.date(), req.startTime())) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
+          "已有相同日期時間的 OPEN 場次，請勿重複建立");
+    }
+
     Session session = new Session();
     session.setSessionDate(req.date());
     session.setStartTime(req.startTime());
@@ -126,6 +132,11 @@ public class SessionService {
       int sent = pushService.pushToMany(userIds, msg);
       log.info("Cancellation push sent to {}/{} users", sent, userIds.size());
     }
+  }
+
+  /** 查詢指定日期時間是否已存在 OPEN 場次的 ID（供申請核准用） */
+  public Long findOpenSessionId(java.time.LocalDate date, LocalTime time) {
+    return sessionMapper.findOpenSessionId(date, time);
   }
 
   private void validateTime(LocalTime time) {

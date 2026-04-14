@@ -52,6 +52,15 @@ public class PushService {
   }
 
   /**
+   * 推播給單一用戶（語義等同 push，提供更清楚的命名）。
+   *
+   * @return true 表示成功推播
+   */
+  public boolean pushToOne(String lineUserId, String text) {
+    return push(lineUserId, text);
+  }
+
+  /**
    * 批次推播給多人（例如場次取消通知）。
    *
    * @return 成功推播人數

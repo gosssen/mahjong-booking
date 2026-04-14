@@ -19,6 +19,9 @@ public class AdminService {
   @Value("${app.initial-admin-user-id:}")
   private String initialAdminUserId;
 
+  @Value("${app.developer-user-id:}")
+  private String developerUserId;
+
   /**
    * 啟動時若 admins 表為空且有設定 INITIAL_ADMIN_USER_ID，
    * 自動寫入第一個管理員。
@@ -37,8 +40,16 @@ public class AdminService {
     }
   }
 
+  /** 判斷是否為管理員（含開發人員） */
   public boolean isAdmin(String lineUserId) {
-    return adminMapper.existsByLineUserId(lineUserId);
+    return isDeveloper(lineUserId) || adminMapper.existsByLineUserId(lineUserId);
+  }
+
+  /** 判斷是否為開發人員 */
+  public boolean isDeveloper(String lineUserId) {
+    return developerUserId != null
+        && !developerUserId.isBlank()
+        && developerUserId.equals(lineUserId);
   }
 
   public void addAdmin(String lineUserId, String addedBy) {

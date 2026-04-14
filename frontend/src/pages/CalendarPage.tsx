@@ -1,5 +1,6 @@
 import { logError } from './../utils/logger'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getSessions, bookTable, type Session, type MahjongTable } from '../api'
 import { formatSession, formatDate, toISODate } from '../utils/format'
 import { useAuth } from '../context/AuthContext'
@@ -48,6 +49,7 @@ function seatsLeft(table: MahjongTable): number {
 
 export default function CalendarPage() {
   const { me } = useAuth()
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState<Session[]>([])
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
@@ -80,7 +82,8 @@ export default function CalendarPage() {
   }
 
   function selectDay(day: DayInfo) {
-    if (day.status === 'none' || day.date < today || day.date > maxDate) return
+    const isPast = day.date < today || day.date > maxDate
+    if (isPast) return
     setSelectedDate(day.date)
     setSelectedSession(null)
     setMessage(null)
@@ -110,6 +113,9 @@ export default function CalendarPage() {
 
   const DOW = ['日', '一', '二', '三', '四', '五', '六']
 
+  const selectedDay = selectedDate ? days.find(d => d.date === selectedDate) : null
+  const hasNoSession = selectedDay?.status === 'none'
+
   return (
     <div className="max-w-lg mx-auto p-4">
       {/* Header */}
@@ -132,16 +138,16 @@ export default function CalendarPage() {
           const isPast = day.date < today || day.date > maxDate
           const isSelected = day.date === selectedDate
           const colors: Record<DayStatus, string> = {
-            none: 'text-gray-300',
+            none: `text-gray-400 ${!isPast ? 'hover:bg-gray-100 cursor-pointer' : ''}`,
             available: 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer',
             'almost-full': 'bg-orange-100 text-orange-800 hover:bg-orange-200 cursor-pointer',
-            full: 'bg-gray-200 text-gray-400',
+            full: 'bg-gray-200 text-gray-400 cursor-pointer',
           }
           return (
             <button
               key={day.date}
-              onClick={() => selectDay(day)}
-              disabled={day.status === 'none' || day.status === 'full' || isPast}
+              onClick={() => !isPast && selectDay(day)}
+              disabled={isPast}
               className={`
                 aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-colors
                 ${colors[day.status]}
@@ -163,22 +169,42 @@ export default function CalendarPage() {
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 inline-block" />已滿桌</span>
       </div>
 
+      {/* Selected date with no session — offer to apply */}
+      {selectedDate && hasNoSession && !me?.admin && (
+        <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200 text-center">
+          <p className="text-gray-600 text-sm mb-3">
+            {formatDate(selectedDate)} 目前沒有場次
+          </p>
+          <button
+            onClick={() => navigate('/session-requests')}
+            className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors"
+          >
+            申請開場
+          </button>
+        </div>
+      )}
+
       {/* Session list for selected date */}
-      {selectedDate && !selectedSession && (
+      {selectedDate && !hasNoSession && !selectedSession && (
         <div className="mt-4">
           <h2 className="font-bold text-gray-700 mb-2">{formatDate(selectedDate)} 場次</h2>
-          {days.find(d => d.date === selectedDate)?.sessions.map(s => {
+          {selectedDay?.sessions.map(s => {
             const totalSeats = s.tables.length * 4
             const taken = s.tables.reduce((a, t) => a + (t.reservations?.length ?? 0), 0)
             const remaining = totalSeats - taken
+            const isFull = remaining === 0
             return (
               <button
                 key={s.id}
-                onClick={() => setSelectedSession(s)}
-                className="w-full text-left p-3 mb-2 rounded-lg border border-gray-200 bg-white hover:bg-green-50 transition-colors"
+                onClick={() => !isFull && setSelectedSession(s)}
+                disabled={isFull}
+                className={`w-full text-left p-3 mb-2 rounded-lg border bg-white transition-colors
+                  ${isFull ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-50 border-gray-200'}`}
               >
                 <span className="font-medium">{s.startTime.slice(0, 5)}</span>
-                <span className="ml-2 text-sm text-gray-500">剩 {remaining} 位</span>
+                <span className={`ml-2 text-sm ${isFull ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {isFull ? '已滿桌' : `剩 ${remaining} 位`}
+                </span>
               </button>
             )
           })}

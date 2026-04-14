@@ -3,6 +3,28 @@ export interface MeResponse {
   displayName: string
   pictureUrl: string | null
   admin: boolean
+  developer: boolean
+}
+
+export interface User {
+  id: number
+  lineUserId: string
+  displayName: string
+  pictureUrl: string | null
+}
+
+export interface SessionRequestRecord {
+  id: number
+  lineUserId: string
+  displayName: string | null
+  requestDate: string    // 'YYYY-MM-DD'
+  requestTime: string    // 'HH:mm:ss'
+  note: string | null
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  reviewedBy: string | null
+  reviewNote: string | null
+  sessionId: number | null
+  createdAt: string
 }
 
 export interface MahjongTable {
