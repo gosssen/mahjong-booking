@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiError'
 import { logError } from '../../utils/logger'
 import { useEffect, useState } from 'react'
 import { getAdmins, getUsers, setAdminByUserId, removeAdminByUserId, type User } from '../../api'
@@ -41,7 +42,7 @@ export default function AdminManage() {
       }
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? (isAdmin ? '移除失敗' : '設定失敗'))
+      alert(apiErrorMessage(e, isAdmin ? '移除失敗' : '設定失敗'))
     } finally {
       setBusy(null)
     }

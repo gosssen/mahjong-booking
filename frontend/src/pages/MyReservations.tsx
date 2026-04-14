@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiError'
 import { logError } from './../utils/logger'
 import { useEffect, useState } from 'react'
 import { getMyReservations, cancelReservation, type Reservation } from '../api'
@@ -25,7 +26,7 @@ export default function MyReservations() {
       await cancelReservation(id)
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '取消失敗')
+      alert(apiErrorMessage(e, '取消失敗'))
     } finally {
       setCancelling(null)
     }

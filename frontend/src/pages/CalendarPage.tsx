@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiError'
 import { logError } from './../utils/logger'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -105,7 +106,7 @@ export default function CalendarPage() {
       setSelectedSession(null)
       setSelectedDate(null)
     } catch (e: any) {
-      setMessage(`❌ ${e.response?.data?.detail ?? e.message ?? '預約失敗'}`)
+      setMessage(`❌ ${apiErrorMessage(e, '預約失敗')}`)
     } finally {
       setBooking(false)
     }

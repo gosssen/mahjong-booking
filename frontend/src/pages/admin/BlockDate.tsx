@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiError'
 import { logError } from '../../utils/logger'
 import { useEffect, useState } from 'react'
 import { getBlockedDates, blockDate, unblockDate } from '../../api'
@@ -38,7 +39,7 @@ export default function BlockDate() {
       setNewReason('')
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '封鎖失敗')
+      alert(apiErrorMessage(e, '封鎖失敗'))
     } finally {
       setAdding(false)
     }
@@ -50,7 +51,7 @@ export default function BlockDate() {
       await unblockDate(id)
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '解除失敗')
+      alert(apiErrorMessage(e, '解除失敗'))
     }
   }
 

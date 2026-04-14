@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiError'
 import { logError } from '../../utils/logger'
 import { useEffect, useState } from 'react'
 import {
@@ -63,7 +64,7 @@ export default function TableLayout() {
       setSelected(null)
       await loadReservations(selectedSession!)
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '對調失敗')
+      alert(apiErrorMessage(e, '對調失敗'))
       setSelected(null)
     }
   }
@@ -77,7 +78,7 @@ export default function TableLayout() {
       setSelected(null)
       await loadReservations(selectedSession!)
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '移桌失敗')
+      alert(apiErrorMessage(e, '移桌失敗'))
       setSelected(null)
     }
   }
@@ -89,7 +90,7 @@ export default function TableLayout() {
       await cancelReservation(res.id, note || undefined)
       await loadReservations(selectedSession!)
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '取消失敗')
+      alert(apiErrorMessage(e, '取消失敗'))
     }
   }
 

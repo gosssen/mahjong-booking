@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiError'
 import { logError } from '../../utils/logger'
 import { useEffect, useState } from 'react'
 import { getPushQuota, getSessions, type Session } from '../../api'
@@ -35,7 +36,7 @@ export default function PushCenter() {
       getPushQuota().then(setQuota)
       setMessage('')
     } catch (e: any) {
-      setResult(`❌ ${e.response?.data?.detail ?? e.message ?? '推播失敗'}`)
+      setResult(`❌ ${apiErrorMessage(e, '推播失敗')}`)
     } finally {
       setSending(false)
     }

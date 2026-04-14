@@ -9,6 +9,7 @@ import {
   type Session,
 } from '../../api'
 import { formatSession, toISODate } from '../../utils/format'
+import { apiErrorMessage } from '../../utils/apiError'
 
 /** 產生 08:00 ~ 23:50（10分鐘間隔）的所有選項 */
 function allTimeOptions(): string[] {
@@ -79,7 +80,7 @@ export default function SessionManage() {
       setNewDate('')
       setNewTime('19:00')
     } catch (e: any) {
-      setCreateError(e.response?.data?.detail ?? e.message ?? '建立失敗')
+      setCreateError(apiErrorMessage(e, '建立失敗'))
     } finally {
       setCreating(false)
     }
@@ -92,7 +93,7 @@ export default function SessionManage() {
       await cancelSession(session.id, reason.trim() || undefined)
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '取消失敗')
+      alert(apiErrorMessage(e, '取消失敗'))
     }
   }
 
@@ -101,7 +102,7 @@ export default function SessionManage() {
       await addTable(sessionId)
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '新增桌失敗')
+      alert(apiErrorMessage(e, '新增桌失敗'))
     }
   }
 
@@ -111,7 +112,7 @@ export default function SessionManage() {
       await removeTable(sessionId, tableId)
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? '移除失敗（桌位有人）')
+      alert(apiErrorMessage(e, '移除失敗（桌位有人）'))
     }
   }
 

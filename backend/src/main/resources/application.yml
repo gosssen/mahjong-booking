@@ -10,6 +10,9 @@ spring:
   sql:
     init:
       mode: never
+  mvc:
+    problemdetails:
+      enabled: true   # 啟用 RFC 7807，錯誤訊息放在 detail 欄位
 
 line:
   bot:

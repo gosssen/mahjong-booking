@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiError'
 import { logError } from '../utils/logger'
 import { useEffect, useState } from 'react'
 import { applySession, getMySessionRequests, type SessionRequestRecord } from '../api'
@@ -68,7 +69,7 @@ export default function SessionRequestPage() {
       setNote('')
       load()
     } catch (e: any) {
-      setSubmitError(e.response?.data?.detail ?? e.message ?? '送出失敗')
+      setSubmitError(apiErrorMessage(e, '送出失敗'))
     } finally {
       setSubmitting(false)
     }

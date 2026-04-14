@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiError'
 import { logError } from '../../utils/logger'
 import { useEffect, useState } from 'react'
 import { getAllSessionRequests, reviewSessionRequest, type SessionRequestRecord } from '../../api'
@@ -45,7 +46,7 @@ export default function SessionRequestAdmin() {
       await reviewSessionRequest(id, approved, note.trim() || undefined)
       load()
     } catch (e: any) {
-      alert(e.response?.data?.detail ?? `${action}失敗`)
+      alert(apiErrorMessage(e, `${action}失敗`))
     } finally {
       setBusy(null)
     }
