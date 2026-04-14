@@ -50,11 +50,18 @@ public class ReservationService {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Table is full");
     }
 
-    // 重複預約驗證
+    // 重複預約驗證 / 換桌處理
     Reservation existing = reservationMapper.findBySessionAndUser(sessionId, lineUserId);
     if (existing != null && "CONFIRMED".equals(existing.getStatus())) {
-      throw new ResponseStatusException(HttpStatus.CONFLICT,
-          "You already have a reservation for this session");
+      if (existing.getTableId().equals(tableId)) {
+        // 點了同一桌，視為 no-op 直接回傳
+        return reservationMapper.findById(existing.getId());
+      }
+      // 已有預約但想換桌 → 直接更新桌位
+      reservationMapper.updateTableId(existing.getId(), tableId);
+      log.info("Table switched: user={} session={} table={}->{}", lineUserId, sessionId,
+          existing.getTableId(), tableId);
+      return reservationMapper.findById(existing.getId());
     }
 
     // 若有舊的 CANCELLED 記錄，更新為 CONFIRMED（避免 UNIQUE constraint 衝突）
