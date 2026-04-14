@@ -5,7 +5,7 @@
 <mapper namespace="com.mahjong.mapper.PushLogMapper">
 
   <select id="getCount" resultType="int">
-    SELECT COALESCE(count, 0)
+    SELECT COALESCE(MAX(count), 0)
     FROM push_log
     WHERE year_month = #{yearMonth}
   </select>

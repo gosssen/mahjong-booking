@@ -26,7 +26,12 @@ export default function PushCenter() {
     setResult(null)
     try {
       const res = await api.post(`/api/sessions/${selectedSessionId}/push`, { message })
-      setResult(`✅ 已送出 ${res.data.sent} 則推播`)
+      const { sent, total } = res.data
+      if (total === 0) {
+        setResult(`⚠️ 該場次目前無人預約，未發送推播`)
+      } else {
+        setResult(`✅ 已送出 ${sent} / ${total} 則推播`)
+      }
       getPushQuota().then(setQuota)
       setMessage('')
     } catch (e: any) {
