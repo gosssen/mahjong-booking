@@ -10,6 +10,29 @@ import {
 } from '../../api'
 import { formatSession, toISODate } from '../../utils/format'
 
+/** 產生 08:00 ~ 23:50（10分鐘間隔）的所有選項 */
+function allTimeOptions(): string[] {
+  const opts: string[] = []
+  for (let h = 8; h <= 23; h++) {
+    for (let m = 0; m < 60; m += 10) {
+      opts.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+    }
+  }
+  return opts
+}
+
+/** 若 date 是今天，過濾掉已過去的時間（精確到10分鐘） */
+function availableTimeOptions(date: string, today: string): string[] {
+  const all = allTimeOptions()
+  if (date !== today) return all
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  return all.filter(t => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m > nowMinutes  // 嚴格大於，不允許當前這分鐘
+  })
+}
+
 export default function SessionManage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +45,19 @@ export default function SessionManage() {
 
   const today = toISODate(new Date())
   const maxDate = toISODate(new Date(new Date().setMonth(new Date().getMonth() + 2)))
+
+  // 日期改變時重設時間（避免殘留舊日期的過去時間）
+  function handleDateChange(date: string) {
+    setNewDate(date)
+    const opts = availableTimeOptions(date, today)
+    if (opts.length === 0) return
+    // 如果目前選的時間在新日期中已過去，自動選第一個可用時間
+    if (!opts.includes(newTime)) {
+      setNewTime(opts[0])
+    }
+  }
+
+  const timeOptions = availableTimeOptions(newDate || '', today)
 
   function load() {
     setLoading(true)
@@ -50,9 +86,10 @@ export default function SessionManage() {
   }
 
   async function handleCancel(session: Session) {
-    const reason = prompt(`取消場次：${formatSession(session.sessionDate, session.startTime)}\n取消原因（可留空）：`) ?? ''
+    const reason = prompt(`取消場次：${formatSession(session.sessionDate, session.startTime)}\n取消原因（可留空）：`)
+    if (reason === null) return  // 使用者按取消
     try {
-      await cancelSession(session.id, reason || undefined)
+      await cancelSession(session.id, reason.trim() || undefined)
       load()
     } catch (e: any) {
       alert(e.response?.data?.detail ?? '取消失敗')
@@ -78,14 +115,6 @@ export default function SessionManage() {
     }
   }
 
-  // Generate time options in 10-minute intervals
-  const timeOptions: string[] = []
-  for (let h = 8; h <= 23; h++) {
-    for (let m = 0; m < 60; m += 10) {
-      timeOptions.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
-    }
-  }
-
   return (
     <div className="max-w-lg mx-auto p-4">
       <h1 className="text-lg font-bold text-gray-800 mb-4">場次管理</h1>
@@ -99,21 +128,29 @@ export default function SessionManage() {
             min={today}
             max={maxDate}
             value={newDate}
-            onChange={e => setNewDate(e.target.value)}
+            onChange={e => handleDateChange(e.target.value)}
             className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
           <select
             value={newTime}
             onChange={e => setNewTime(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            disabled={!newDate}
+            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50"
           >
-            {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            {timeOptions.length === 0 ? (
+              <option value="">無可用時段</option>
+            ) : (
+              timeOptions.map(t => <option key={t} value={t}>{t}</option>)
+            )}
           </select>
         </div>
+        {newDate === today && timeOptions.length === 0 && (
+          <p className="text-xs text-orange-500 mb-2">今日已無可建立的時段（請選擇未來日期）</p>
+        )}
         {createError && <p className="text-red-500 text-xs mb-2">{createError}</p>}
         <button
           onClick={handleCreate}
-          disabled={!newDate || creating}
+          disabled={!newDate || !newTime || timeOptions.length === 0 || creating}
           className="w-full py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
         >
           {creating ? '建立中...' : '建立場次'}

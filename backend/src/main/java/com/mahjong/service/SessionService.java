@@ -7,7 +7,10 @@ import com.mahjong.mapper.TableMapper;
 import com.mahjong.model.MahjongTable;
 import com.mahjong.model.Session;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,9 +47,12 @@ public class SessionService {
    * 管理員建立場次，同時自動建第一張桌。
    * 時間必須以 10 分鐘為單位（分鐘 % 10 == 0）。
    */
+  private static final ZoneId TAIPEI = ZoneId.of("Asia/Taipei");
+
   @Transactional
   public Session create(CreateSessionRequest req, String createdBy) {
     validateTime(req.startTime());
+    validateNotPast(req.date(), req.startTime());
 
     // 服務層防重：同日同時間已有 OPEN 場次
     if (sessionMapper.existsOpenSession(req.date(), req.startTime())) {
@@ -143,6 +149,16 @@ public class SessionService {
     if (time.getMinute() % 10 != 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
           "Start time must be on a 10-minute interval (e.g. 19:00, 19:10)");
+    }
+  }
+
+  /** 不允許建立已過去的場次（以台灣時區 Asia/Taipei 為準） */
+  private void validateNotPast(LocalDate date, LocalTime time) {
+    ZonedDateTime sessionAt = ZonedDateTime.of(LocalDateTime.of(date, time), TAIPEI);
+    ZonedDateTime nowTaipei  = ZonedDateTime.now(TAIPEI);
+    if (sessionAt.isBefore(nowTaipei)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "不可建立已過去的場次時間");
     }
   }
 }

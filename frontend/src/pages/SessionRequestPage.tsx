@@ -28,13 +28,24 @@ export default function SessionRequestPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
-  // time options
-  const timeOptions: string[] = []
-  for (let h = 8; h <= 23; h++) {
-    for (let m = 0; m < 60; m += 10) {
-      timeOptions.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+  // 所有 10 分鐘間隔的時間選項，今天只顯示尚未過去的時段
+  function getTimeOptions(forDate: string): string[] {
+    const all: string[] = []
+    for (let h = 8; h <= 23; h++) {
+      for (let m = 0; m < 60; m += 10) {
+        all.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+      }
     }
+    if (forDate !== today) return all
+    const now = new Date()
+    const nowMinutes = now.getHours() * 60 + now.getMinutes()
+    return all.filter(t => {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + m > nowMinutes
+    })
   }
+
+  const timeOptions = getTimeOptions(date)
 
   function load() {
     setLoading(true)
