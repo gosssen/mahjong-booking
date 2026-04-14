@@ -123,17 +123,21 @@ class ReservationServiceTest {
   }
 
   @Test
-  void book_duplicateConfirmedReservation_throws409() {
+  void book_sameTableWithExistingConfirmedReservation_returnsExisting() {
+    // 用戶點了同一桌（已有 CONFIRMED 預約），行為是 no-op，直接回傳現有預約
+    Reservation existing = confirmedReservation(RES_ID, SESSION_ID, USER_ID);  // tableId = TABLE_ID
+    Reservation fromDb = confirmedReservation(RES_ID, SESSION_ID, USER_ID);
+
     when(sessionMapper.findById(SESSION_ID)).thenReturn(openSession());
     when(tableMapper.lockById(TABLE_ID)).thenReturn(tableInSession(SESSION_ID));
     when(reservationMapper.findConfirmedByTableId(TABLE_ID)).thenReturn(Collections.emptyList());
-    when(reservationMapper.findBySessionAndUser(SESSION_ID, USER_ID))
-        .thenReturn(confirmedReservation(RES_ID, SESSION_ID, USER_ID));
+    when(reservationMapper.findBySessionAndUser(SESSION_ID, USER_ID)).thenReturn(existing);
+    when(reservationMapper.findById(RES_ID)).thenReturn(fromDb);
 
-    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID))
-        .isInstanceOf(ResponseStatusException.class)
-        .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
-            .isEqualTo(HttpStatus.CONFLICT));
+    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID);
+
+    assertThat(result).isNotNull();
+    verify(reservationMapper, never()).insert(any());
   }
 
   @Test

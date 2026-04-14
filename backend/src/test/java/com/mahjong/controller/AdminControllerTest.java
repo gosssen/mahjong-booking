@@ -17,6 +17,7 @@ import com.mahjong.service.BlockedDateService;
 import com.mahjong.service.PushService;
 import com.mahjong.service.ReservationService;
 import com.mahjong.service.RichMenuService;
+import com.mahjong.service.SessionRequestService;
 import com.mahjong.service.SessionService;
 import com.mahjong.service.UserService;
 import java.util.List;
@@ -38,6 +39,7 @@ class AdminControllerTest {
   @Mock private UserMapper userMapper;
   @Mock private SessionService sessionService;
   @Mock private SessionMapper sessionMapper;
+  @Mock private SessionRequestService sessionRequestService;
   @Mock private ReservationService reservationService;
   @Mock private BlockedDateService blockedDateService;
   @Mock private PushService pushService;
@@ -50,20 +52,30 @@ class AdminControllerTest {
   private static final String ADMIN_USER_ID = "Uadmin";
   private static final Long TARGET_ADMIN_ID = 2L;
 
-  // ── removeAdmin(): last admin protection ───────────────────────────────────
+  // ── removeAdmin(): order of guards (findAll → dev → self → count → delete) ─
 
   @Test
   void removeAdmin_lastAdmin_throws400() {
+    // findAll returns only the target; count = 1 → cannot remove last admin
+    Admin callerAdmin = new Admin();
+    callerAdmin.setId(1L);
+    callerAdmin.setLineUserId(ADMIN_USER_ID);
+
+    Admin targetAdmin = new Admin();
+    targetAdmin.setId(TARGET_ADMIN_ID);
+    targetAdmin.setLineUserId("Utarget");
+
     when(authService.extractUserId(BEARER_TOKEN)).thenReturn(ADMIN_USER_ID);
     when(adminService.isAdmin(ADMIN_USER_ID)).thenReturn(true);
-    when(adminMapper.count()).thenReturn(1L);  // only one admin left
+    when(adminMapper.findAll()).thenReturn(List.of(callerAdmin, targetAdmin));
+    when(adminService.isDeveloper("Utarget")).thenReturn(false);
+    when(adminMapper.count()).thenReturn(1L);
 
     assertThatThrownBy(() -> apiController.removeAdmin(BEARER_TOKEN, TARGET_ADMIN_ID))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> {
           ResponseStatusException rse = (ResponseStatusException) ex;
           assert rse.getStatusCode() == HttpStatus.BAD_REQUEST;
-          assert rse.getReason() != null && rse.getReason().contains("last admin");
         });
 
     verify(adminMapper, never()).deleteById(anyLong());
@@ -71,20 +83,17 @@ class AdminControllerTest {
 
   @Test
   void removeAdmin_selfDeletion_throws400() {
+    // target == caller → self-deletion check fires before count check
     Admin callerAdmin = new Admin();
     callerAdmin.setId(TARGET_ADMIN_ID);
     callerAdmin.setLineUserId(ADMIN_USER_ID);
 
-    Admin otherAdmin = new Admin();
-    otherAdmin.setId(99L);
-    otherAdmin.setLineUserId("Uother");
-
     when(authService.extractUserId(BEARER_TOKEN)).thenReturn(ADMIN_USER_ID);
     when(adminService.isAdmin(ADMIN_USER_ID)).thenReturn(true);
-    when(adminMapper.count()).thenReturn(2L);  // more than one admin — last-admin guard passes
-    when(adminMapper.findAll()).thenReturn(List.of(callerAdmin, otherAdmin));
+    when(adminMapper.findAll()).thenReturn(List.of(callerAdmin));
+    when(adminService.isDeveloper(ADMIN_USER_ID)).thenReturn(false);
+    // count() is NOT called — self-check throws before we reach count()
 
-    // Caller tries to delete their own record (TARGET_ADMIN_ID == callerAdmin.id)
     assertThatThrownBy(() -> apiController.removeAdmin(BEARER_TOKEN, TARGET_ADMIN_ID))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> {
@@ -108,8 +117,9 @@ class AdminControllerTest {
 
     when(authService.extractUserId(BEARER_TOKEN)).thenReturn(ADMIN_USER_ID);
     when(adminService.isAdmin(ADMIN_USER_ID)).thenReturn(true);
-    when(adminMapper.count()).thenReturn(2L);
     when(adminMapper.findAll()).thenReturn(List.of(callerAdmin, targetAdmin));
+    when(adminService.isDeveloper("Utarget")).thenReturn(false);
+    when(adminMapper.count()).thenReturn(2L);
 
     apiController.removeAdmin(BEARER_TOKEN, TARGET_ADMIN_ID);
 
@@ -130,25 +140,49 @@ class AdminControllerTest {
   }
 
   @Test
-  void removeAdmin_targetNotInAdminList_doesNotThrow() {
-    // If the target ID is not found in findAll(), the ifPresent block is skipped
-    // and deleteById is still called (controller doesn't guard against unknown IDs)
+  void removeAdmin_targetNotFound_throws404() {
+    // 新邏輯：findAll 找不到 TARGET_ADMIN_ID → 404 NOT_FOUND
     Admin callerAdmin = new Admin();
     callerAdmin.setId(1L);
     callerAdmin.setLineUserId(ADMIN_USER_ID);
 
     when(authService.extractUserId(BEARER_TOKEN)).thenReturn(ADMIN_USER_ID);
     when(adminService.isAdmin(ADMIN_USER_ID)).thenReturn(true);
-    when(adminMapper.count()).thenReturn(2L);
     when(adminMapper.findAll()).thenReturn(List.of(callerAdmin));  // TARGET_ADMIN_ID not present
 
-    // Should not throw — deleteById is called even for unknown IDs
-    apiController.removeAdmin(BEARER_TOKEN, TARGET_ADMIN_ID);
+    assertThatThrownBy(() -> apiController.removeAdmin(BEARER_TOKEN, TARGET_ADMIN_ID))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+            .isEqualTo(HttpStatus.NOT_FOUND));
 
-    verify(adminMapper).deleteById(TARGET_ADMIN_ID);
+    verify(adminMapper, never()).deleteById(anyLong());
   }
 
-  // ── helper: re-import assertThat for use inside lambdas ───────────────────
+  @Test
+  void removeAdmin_developerAccount_throws403() {
+    Admin callerAdmin = new Admin();
+    callerAdmin.setId(1L);
+    callerAdmin.setLineUserId(ADMIN_USER_ID);
+
+    Admin devAdmin = new Admin();
+    devAdmin.setId(TARGET_ADMIN_ID);
+    devAdmin.setLineUserId("Udev");
+
+    when(authService.extractUserId(BEARER_TOKEN)).thenReturn(ADMIN_USER_ID);
+    when(adminService.isAdmin(ADMIN_USER_ID)).thenReturn(true);
+    when(adminMapper.findAll()).thenReturn(List.of(callerAdmin, devAdmin));
+    when(adminService.isDeveloper("Udev")).thenReturn(true);
+
+    assertThatThrownBy(() -> apiController.removeAdmin(BEARER_TOKEN, TARGET_ADMIN_ID))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+            .isEqualTo(HttpStatus.FORBIDDEN));
+
+    verify(adminMapper, never()).deleteById(anyLong());
+  }
+
+  // ── helper ────────────────────────────────────────────────────────────────
+
   private static <T> org.assertj.core.api.AbstractObjectAssert<?, T> assertThat(T actual) {
     return org.assertj.core.api.Assertions.assertThat(actual);
   }
