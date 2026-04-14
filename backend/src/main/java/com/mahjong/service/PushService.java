@@ -29,15 +29,16 @@ public class PushService {
    */
   public boolean push(String lineUserId, String text) {
     String yearMonth = YearMonth.now().toString();  // '2026-04'
-    int used = pushLogMapper.getCount(yearMonth);
-    if (used >= MONTHLY_LIMIT) {
-      log.warn("Push quota exhausted ({}/{}), skipping push to {}", used, MONTHLY_LIMIT, lineUserId);
-      return false;
-    }
     try {
+      int used = pushLogMapper.getCount(yearMonth);
+      if (used >= MONTHLY_LIMIT) {
+        log.warn("Push quota exhausted ({}/{}), skipping push to {}", used, MONTHLY_LIMIT, lineUserId);
+        return false;
+      }
       messagingApiClient.pushMessage(
           null,  // xLineRetryKey: null = 不做冪等重試
-          new PushMessageRequest(lineUserId, List.of(new TextMessage(text)), false, null));
+          new PushMessageRequest(lineUserId, List.of(new TextMessage(text)), false, null))
+          .get();
       pushLogMapper.increment(yearMonth);
       int remaining = MONTHLY_LIMIT - used - 1;
       if (remaining <= WARN_THRESHOLD) {
