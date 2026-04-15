@@ -10,6 +10,7 @@
     <result property="sessionId"   column="r_session_id"/>
     <result property="tableId"     column="r_table_id"/>
     <result property="lineUserId"  column="r_line_user_id"/>
+    <result property="guestCount"  column="r_guest_count"/>
     <result property="status"      column="r_status"/>
     <result property="cancelledBy" column="r_cancelled_by"/>
     <result property="cancelNote"  column="r_cancel_note"/>
@@ -56,6 +57,7 @@
       r.session_id   AS r_session_id,
       r.table_id     AS r_table_id,
       r.line_user_id AS r_line_user_id,
+      r.guest_count  AS r_guest_count,
       r.status       AS r_status,
       r.cancelled_by AS r_cancelled_by,
       r.cancel_note  AS r_cancel_note,
