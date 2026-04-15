@@ -40,8 +40,8 @@ export async function removeTable(sessionId: number, tableId: number): Promise<v
   await api.delete(`/api/sessions/${sessionId}/tables/${tableId}`)
 }
 
-export async function bookTable(sessionId: number, tableId: number): Promise<Reservation> {
-  const res = await api.post<Reservation>('/api/reservations', { sessionId, tableId })
+export async function bookTable(sessionId: number, tableId: number, guestCount = 0): Promise<Reservation> {
+  const res = await api.post<Reservation>('/api/reservations', { sessionId, tableId, guestCount })
   return res.data
 }
 

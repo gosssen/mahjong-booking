@@ -170,14 +170,15 @@ public class ApiController {
 
   // ── 預約 ────────────────────────────────────────────────────
 
-  /** 用戶預約指定場次的指定桌 */
+  /** 用戶預約指定場次的指定桌（可攜帶朋友） */
   @PostMapping("/reservations")
   @ResponseStatus(HttpStatus.CREATED)
   public Reservation book(
       @RequestHeader("Authorization") String auth,
       @RequestBody BookRequest req) {
     String userId = authService.extractUserId(auth);
-    return reservationService.book(req.sessionId(), req.tableId(), userId);
+    int guests = req.guestCount() != null ? req.guestCount() : 0;
+    return reservationService.book(req.sessionId(), req.tableId(), userId, guests);
   }
 
   /** 查詢自己的所有未來預約 */

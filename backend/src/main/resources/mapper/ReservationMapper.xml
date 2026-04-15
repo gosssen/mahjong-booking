@@ -9,6 +9,7 @@
     <result property="sessionId"        column="session_id"/>
     <result property="tableId"          column="table_id"/>
     <result property="lineUserId"       column="line_user_id"/>
+    <result property="guestCount"       column="guest_count"/>
     <result property="status"           column="status"/>
     <result property="cancelledBy"      column="cancelled_by"/>
     <result property="cancelNote"       column="cancel_note"/>
@@ -72,8 +73,8 @@
   </select>
 
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO reservations (session_id, table_id, line_user_id)
-    VALUES (#{sessionId}, #{tableId}, #{lineUserId})
+    INSERT INTO reservations (session_id, table_id, line_user_id, guest_count)
+    VALUES (#{sessionId}, #{tableId}, #{lineUserId}, #{guestCount})
   </insert>
 
   <update id="cancelByUser">
@@ -100,10 +101,19 @@
     WHERE id = #{id}
   </update>
 
+  <update id="updateTableAndGuests">
+    UPDATE reservations
+    SET table_id    = #{tableId},
+        guest_count = #{guestCount},
+        updated_at  = NOW()
+    WHERE id = #{id}
+  </update>
+
   <update id="reactivate">
     UPDATE reservations
     SET status       = 'CONFIRMED',
         table_id     = #{tableId},
+        guest_count  = #{guestCount},
         cancelled_by = NULL,
         cancel_note  = NULL,
         updated_at   = NOW()

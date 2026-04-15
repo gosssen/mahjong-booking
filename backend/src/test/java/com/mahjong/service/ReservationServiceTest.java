@@ -85,7 +85,7 @@ class ReservationServiceTest {
   void book_sessionNotFound_throws404() {
     when(sessionMapper.findById(SESSION_ID)).thenReturn(null);
 
-    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID))
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
             .isEqualTo(HttpStatus.NOT_FOUND));
@@ -98,7 +98,7 @@ class ReservationServiceTest {
     cancelled.setStatus("CANCELLED");
     when(sessionMapper.findById(SESSION_ID)).thenReturn(cancelled);
 
-    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID))
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
             .isEqualTo(HttpStatus.BAD_REQUEST));
@@ -116,10 +116,62 @@ class ReservationServiceTest {
         confirmedReservation(4L, SESSION_ID, "UD"));
     when(reservationMapper.findConfirmedByTableId(TABLE_ID)).thenReturn(fourSeated);
 
-    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID))
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
             .isEqualTo(HttpStatus.CONFLICT));
+  }
+
+  @Test
+  void book_guestCountExceedsCapacity_throws409() {
+    // 1 人已佔 2 座（guestCount=1），再加 1 人帶 2 位朋友（共 3 座）→ 超過 4
+    when(sessionMapper.findById(SESSION_ID)).thenReturn(openSession());
+    when(tableMapper.lockById(TABLE_ID)).thenReturn(tableInSession(SESSION_ID));
+
+    Reservation withGuest = confirmedReservation(1L, SESSION_ID, "UA");
+    withGuest.setGuestCount(1); // 佔 2 座
+    Reservation another = confirmedReservation(2L, SESSION_ID, "UB"); // 佔 1 座，共 3 座
+    when(reservationMapper.findConfirmedByTableId(TABLE_ID)).thenReturn(List.of(withGuest, another));
+
+    // 新用戶想帶 2 位朋友（需 3 座），但桌上只剩 1 座 → 409
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 2))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+            .isEqualTo(HttpStatus.CONFLICT));
+  }
+
+  @Test
+  void book_invalidGuestCount_throws400() {
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, -1))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+            .isEqualTo(HttpStatus.BAD_REQUEST));
+
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 4))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+            .isEqualTo(HttpStatus.BAD_REQUEST));
+  }
+
+  @Test
+  void book_switchTableUpdatesGuestCount() {
+    // 已有預約（guestCount=0），換桌且改帶 2 位朋友
+    Reservation existing = confirmedReservation(RES_ID, SESSION_ID, USER_ID); // tableId=TABLE_ID, guestCount=0
+    Long newTableId = 20L;
+
+    when(sessionMapper.findById(SESSION_ID)).thenReturn(openSession());
+    MahjongTable newTable = tableInSession(SESSION_ID);
+    newTable.setId(newTableId);
+    when(tableMapper.lockById(newTableId)).thenReturn(newTable);
+    when(reservationMapper.findConfirmedByTableId(newTableId)).thenReturn(Collections.emptyList());
+    when(reservationMapper.findBySessionAndUser(SESSION_ID, USER_ID)).thenReturn(existing);
+    when(reservationMapper.findById(RES_ID)).thenReturn(existing);
+
+    reservationService.book(SESSION_ID, newTableId, USER_ID, 2);
+
+    // 應呼叫 updateTableAndGuests 而非只更新桌位
+    verify(reservationMapper).updateTableAndGuests(RES_ID, newTableId, 2);
+    verify(reservationMapper, never()).insert(any());
   }
 
   @Test
@@ -134,7 +186,7 @@ class ReservationServiceTest {
     when(reservationMapper.findBySessionAndUser(SESSION_ID, USER_ID)).thenReturn(existing);
     when(reservationMapper.findById(RES_ID)).thenReturn(fromDb);
 
-    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID);
+    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0);
 
     assertThat(result).isNotNull();
     verify(reservationMapper, never()).insert(any());
@@ -151,9 +203,9 @@ class ReservationServiceTest {
     when(reservationMapper.findBySessionAndUser(SESSION_ID, USER_ID)).thenReturn(cancelled);
     when(reservationMapper.findById(RES_ID)).thenReturn(reactivated);
 
-    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID);
+    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0);
 
-    verify(reservationMapper).reactivate(RES_ID, TABLE_ID);
+    verify(reservationMapper).reactivate(RES_ID, TABLE_ID, 0);
     verify(reservationMapper, never()).insert(any());
     assertThat(result.getStatus()).isEqualTo("CONFIRMED");
   }
@@ -168,7 +220,7 @@ class ReservationServiceTest {
     when(reservationMapper.findBySessionAndUser(SESSION_ID, USER_ID)).thenReturn(null);
     when(reservationMapper.findById(any())).thenReturn(inserted);
 
-    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID);
+    Reservation result = reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0);
 
     verify(reservationMapper).insert(any(Reservation.class));
     assertThat(result.getLineUserId()).isEqualTo(USER_ID);
@@ -181,7 +233,7 @@ class ReservationServiceTest {
     when(sessionMapper.findById(SESSION_ID)).thenReturn(openSession());
     when(tableMapper.lockById(TABLE_ID)).thenReturn(tableFromDifferentSession);
 
-    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID))
+    assertThatThrownBy(() -> reservationService.book(SESSION_ID, TABLE_ID, USER_ID, 0))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
             .isEqualTo(HttpStatus.NOT_FOUND));

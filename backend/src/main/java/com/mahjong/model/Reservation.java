@@ -9,6 +9,7 @@ public class Reservation {
   private Long sessionId;
   private Long tableId;
   private String lineUserId;
+  private Integer guestCount;   // 攜帶朋友數（不含本人），預設 0
   private String status;        // CONFIRMED / CANCELLED
   private String cancelledBy;
   private String cancelNote;

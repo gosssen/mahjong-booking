@@ -25,10 +25,16 @@ public class ReservationService {
 
   /**
    * 用戶預約指定場次的指定桌。
-   * 驗證：場次 OPEN、桌屬於該場次、桌未滿（< 4 人）、用戶未重複預約。
+   * 驗證：場次 OPEN、桌屬於該場次、桌剩餘空位足夠（含攜伴人數）、用戶未重複預約。
+   *
+   * @param guestCount 攜帶朋友人數（不含本人），0–3
    */
   @Transactional
-  public Reservation book(Long sessionId, Long tableId, String lineUserId) {
+  public Reservation book(Long sessionId, Long tableId, String lineUserId, int guestCount) {
+    if (guestCount < 0 || guestCount > 3) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "guestCount must be 0–3");
+    }
+
     // 場次驗證
     Session session = sessionMapper.findById(sessionId);
     if (session == null) {
@@ -44,30 +50,32 @@ public class ReservationService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Table not found in this session");
     }
 
-    // 容量驗證（< 4 人，鎖定後再查避免 race condition）
+    // 容量驗證：計算桌上已佔用座位（含各人攜伴），確保加入後不超過 4 位
     List<Reservation> seated = reservationMapper.findConfirmedByTableId(tableId);
-    if (seated.size() >= 4) {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, "Table is full");
+    int occupiedSeats = seated.stream().mapToInt(ReservationService::guestSeats).sum();
+    if (occupiedSeats + 1 + guestCount > 4) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Table does not have enough seats");
     }
 
     // 重複預約驗證 / 換桌處理
     Reservation existing = reservationMapper.findBySessionAndUser(sessionId, lineUserId);
     if (existing != null && "CONFIRMED".equals(existing.getStatus())) {
-      if (existing.getTableId().equals(tableId)) {
-        // 點了同一桌，視為 no-op 直接回傳
+      if (existing.getTableId().equals(tableId) && guestSeats(existing) == 1 + guestCount) {
+        // 同桌且攜伴數相同，no-op 直接回傳
         return reservationMapper.findById(existing.getId());
       }
-      // 已有預約但想換桌 → 直接更新桌位
-      reservationMapper.updateTableId(existing.getId(), tableId);
-      log.info("Table switched: user={} session={} table={}->{}", lineUserId, sessionId,
-          existing.getTableId(), tableId);
+      // 換桌或修改攜伴人數 → 同步更新（guestCount 必須一起更新，否則座位計算失準）
+      reservationMapper.updateTableAndGuests(existing.getId(), tableId, guestCount);
+      log.info("Reservation updated: user={} session={} table={}->{} guests={}", lineUserId, sessionId,
+          existing.getTableId(), tableId, guestCount);
       return reservationMapper.findById(existing.getId());
     }
 
     // 若有舊的 CANCELLED 記錄，更新為 CONFIRMED（避免 UNIQUE constraint 衝突）
     if (existing != null && "CANCELLED".equals(existing.getStatus())) {
-      reservationMapper.reactivate(existing.getId(), tableId);
-      log.info("Reservation reactivated: user={} session={} table={}", lineUserId, sessionId, tableId);
+      reservationMapper.reactivate(existing.getId(), tableId, guestCount);
+      log.info("Reservation reactivated: user={} session={} table={} guests={}", lineUserId, sessionId,
+          tableId, guestCount);
       return reservationMapper.findById(existing.getId());
     }
 
@@ -75,9 +83,11 @@ public class ReservationService {
     res.setSessionId(sessionId);
     res.setTableId(tableId);
     res.setLineUserId(lineUserId);
+    res.setGuestCount(guestCount);
     reservationMapper.insert(res);
 
-    log.info("Reservation created: user={} session={} table={}", lineUserId, sessionId, tableId);
+    log.info("Reservation created: user={} session={} table={} guests={}", lineUserId, sessionId,
+        tableId, guestCount);
     return reservationMapper.findById(res.getId());
   }
 
@@ -156,12 +166,13 @@ public class ReservationService {
     }
 
     List<Reservation> seated = reservationMapper.findConfirmedByTableId(newTableId);
-    // 排除自己（若已在該桌）
-    long count = seated.stream()
+    // 排除自己（若已在該桌），計算目標桌已佔座位數
+    int occupiedSeats = seated.stream()
         .filter(r -> !r.getId().equals(reservationId))
-        .count();
-    if (count >= 4) {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, "Target table is full");
+        .mapToInt(ReservationService::guestSeats)
+        .sum();
+    if (occupiedSeats + guestSeats(res) > 4) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Target table does not have enough seats");
     }
 
     reservationMapper.updateTableId(reservationId, newTableId);
@@ -174,5 +185,10 @@ public class ReservationService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found");
     }
     return res;
+  }
+
+  /** 計算一筆預約佔用的座位數（本人 + 攜伴） */
+  private static int guestSeats(Reservation r) {
+    return 1 + (r.getGuestCount() != null ? r.getGuestCount() : 0);
   }
 }

@@ -31,7 +31,10 @@ function buildCalendarDays(sessions: Session[], year: number, month: number): Da
     if (daySessions.length > 0) {
       const totalSeats = daySessions.reduce((acc, s) => acc + s.tables.length * 4, 0)
       const taken = daySessions.reduce(
-        (acc, s) => acc + s.tables.reduce((a, t) => a + (t.reservations?.length ?? 0), 0),
+        (acc, s) => acc + s.tables.reduce(
+          (a, t) => a + (t.reservations ?? []).reduce((sum, r) => sum + 1 + (r.guestCount ?? 0), 0),
+          0
+        ),
         0
       )
       const remaining = totalSeats - taken
@@ -44,8 +47,10 @@ function buildCalendarDays(sessions: Session[], year: number, month: number): Da
   })
 }
 
+/** 計算桌上剩餘座位（含各人攜伴） */
 function seatsLeft(table: MahjongTable): number {
-  return 4 - (table.reservations?.length ?? 0)
+  const taken = (table.reservations ?? []).reduce((acc, r) => acc + 1 + (r.guestCount ?? 0), 0)
+  return 4 - taken
 }
 
 export default function CalendarPage() {
@@ -58,6 +63,7 @@ export default function CalendarPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [booking, setBooking] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [guestCount, setGuestCount] = useState(0)
 
   const today = toISODate(new Date())
   const maxDate = toISODate(new Date(new Date().setMonth(new Date().getMonth() + 2)))
@@ -87,6 +93,7 @@ export default function CalendarPage() {
     if (isPast) return
     setSelectedDate(day.date)
     setSelectedSession(null)
+    setGuestCount(0)
     setMessage(null)
   }
 
@@ -95,16 +102,19 @@ export default function CalendarPage() {
     setBooking(true)
     setMessage(null)
     try {
-      await bookTable(selectedSession.id, table.id)
+      await bookTable(selectedSession.id, table.id, guestCount)
       const members = table.reservations?.map(r => r.displayName ?? r.lineUserId).join('、') ?? ''
-      const total = (table.reservations?.length ?? 0) + 1
-      setMessage(`✅ 預約成功！${formatSession(selectedSession.sessionDate, selectedSession.startTime)} 第${table.tableNumber}桌\n同桌：${members}（目前${total}人）`)
+      const totalOld = (table.reservations ?? []).reduce((acc, r) => acc + 1 + (r.guestCount ?? 0), 0)
+      const totalNew = totalOld + 1 + guestCount
+      const guestNote = guestCount > 0 ? `（含 ${guestCount} 位朋友）` : ''
+      setMessage(`✅ 預約成功！${formatSession(selectedSession.sessionDate, selectedSession.startTime)} 第${table.tableNumber}桌${guestNote}\n同桌：${members}（目前${totalNew}人）`)
       // refresh sessions
       const from = toISODate(new Date(viewYear, viewMonth, 1))
       const to = toISODate(new Date(viewYear, viewMonth + 1, 0))
       getSessions(from, to).then(setSessions)
       setSelectedSession(null)
       setSelectedDate(null)
+      setGuestCount(0)
     } catch (e: any) {
       setMessage(`❌ ${apiErrorMessage(e, '預約失敗')}`)
     } finally {
@@ -191,7 +201,10 @@ export default function CalendarPage() {
           <h2 className="font-bold text-gray-700 mb-2">{formatDate(selectedDate)} 場次</h2>
           {selectedDay?.sessions.map(s => {
             const totalSeats = s.tables.length * 4
-            const taken = s.tables.reduce((a, t) => a + (t.reservations?.length ?? 0), 0)
+            const taken = s.tables.reduce(
+              (a, t) => a + (t.reservations ?? []).reduce((sum, r) => sum + 1 + (r.guestCount ?? 0), 0),
+              0
+            )
             const remaining = totalSeats - taken
             const isFull = remaining === 0
             return (
@@ -215,29 +228,56 @@ export default function CalendarPage() {
       {/* Table selection */}
       {selectedSession && (
         <div className="mt-4">
-          <button onClick={() => setSelectedSession(null)} className="text-sm text-blue-500 mb-2">← 返回場次列表</button>
+          <button onClick={() => { setSelectedSession(null); setGuestCount(0) }} className="text-sm text-blue-500 mb-2">← 返回場次列表</button>
           <h2 className="font-bold text-gray-700 mb-2">
             {formatSession(selectedSession.sessionDate, selectedSession.startTime)} — 選桌
           </h2>
+
+          {/* 攜伴人數選擇 */}
+          <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+            <p className="text-sm text-blue-700 font-medium mb-2">帶幾位朋友一起來？</p>
+            <div className="flex gap-2">
+              {[0, 1, 2, 3].map(n => (
+                <button
+                  key={n}
+                  onClick={() => setGuestCount(n)}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors
+                    ${guestCount === n
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}
+                >
+                  {n === 0 ? '只有我' : `+${n} 位`}
+                </button>
+              ))}
+            </div>
+            {guestCount > 0 && (
+              <p className="text-xs text-blue-500 mt-1.5">共佔 {1 + guestCount} 個座位</p>
+            )}
+          </div>
+
           {selectedSession.tables.map(table => {
             const left = seatsLeft(table)
-            const members = table.reservations?.map(r => r.displayName ?? '匿名').join('、') ?? ''
+            const canBook = left >= 1 + guestCount
+            const members = table.reservations?.map(r => {
+              const name = r.displayName ?? '匿名'
+              return r.guestCount > 0 ? `${name}(+${r.guestCount})` : name
+            }).join('、') ?? ''
             const alreadyBooked = table.reservations?.some(r => r.lineUserId === me?.userId)
             return (
               <div key={table.id} className="p-3 mb-2 rounded-lg border bg-white">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">第 {table.tableNumber} 桌</span>
                   <span className={`text-sm ${left === 0 ? 'text-gray-400' : 'text-green-600'}`}>
-                    {4 - left}/4 人
+                    {4 - left}/4 人・剩 {left} 位
                   </span>
                 </div>
                 {members && <p className="text-xs text-gray-500 mt-1">{members}</p>}
                 <button
                   onClick={() => handleBook(table)}
-                  disabled={left === 0 || booking || !!alreadyBooked}
+                  disabled={!canBook || booking || !!alreadyBooked}
                   className="mt-2 w-full py-1.5 rounded-lg text-sm font-medium bg-green-500 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-green-600 transition-colors"
                 >
-                  {alreadyBooked ? '已在此桌' : left === 0 ? '已滿' : booking ? '預約中...' : '選擇此桌'}
+                  {alreadyBooked ? '已在此桌' : !canBook ? `空位不足（需 ${1 + guestCount} 位）` : booking ? '預約中...' : '選擇此桌'}
                 </button>
               </div>
             )

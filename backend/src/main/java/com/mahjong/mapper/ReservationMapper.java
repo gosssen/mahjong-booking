@@ -31,15 +31,19 @@ public interface ReservationMapper {
       @Param("cancelledBy") String cancelledBy,
       @Param("cancelNote") String cancelNote);
 
-  /** 管理員對調兩人桌位 */
+  /** 更新桌位（管理員對調 / 移桌用） */
   void updateTableId(@Param("id") Long id, @Param("tableId") Long tableId);
+
+  /** 用戶換桌，同時更新攜伴人數 */
+  void updateTableAndGuests(@Param("id") Long id, @Param("tableId") Long tableId,
+      @Param("guestCount") int guestCount);
 
   /** 取消某場次所有 CONFIRMED 預約（場次整場取消用） */
   void cancelAllBySession(@Param("sessionId") Long sessionId,
       @Param("cancelledBy") String cancelledBy);
 
   /** 重新啟用已取消的預約（換桌重報名） */
-  void reactivate(@Param("id") Long id, @Param("tableId") Long tableId);
+  void reactivate(@Param("id") Long id, @Param("tableId") Long tableId, @Param("guestCount") int guestCount);
 
   /** 查詢單一預約（含 session + table 資訊） */
   Reservation findById(Long id);
