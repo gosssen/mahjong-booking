@@ -39,6 +39,33 @@
     ORDER BY r.created_at
   </select>
 
+  <!-- 已結束（過去場次）+ 已取消，最近 20 筆，供「已結束」分區顯示 -->
+  <select id="findHistoryByUser" resultMap="reservationMap">
+    SELECT r.*, u.display_name,
+           s.session_date, s.start_time,
+           t.table_number
+    FROM reservations r
+    JOIN sessions s        ON s.id           = r.session_id
+    JOIN mahjong_tables t  ON t.id           = r.table_id
+    LEFT JOIN users u      ON u.line_user_id = r.line_user_id
+    WHERE r.line_user_id = #{lineUserId}
+      AND (
+        r.status = 'CANCELLED'
+        OR (
+          r.status = 'CONFIRMED'
+          AND (
+            s.session_date &lt; (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+            OR (
+              s.session_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+              AND s.start_time &lt;= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::time
+            )
+          )
+        )
+      )
+    ORDER BY s.session_date DESC, s.start_time DESC
+    LIMIT 20
+  </select>
+
   <select id="findUpcomingByUser" resultMap="reservationMap">
     SELECT r.*, u.display_name,
            s.session_date, s.start_time,

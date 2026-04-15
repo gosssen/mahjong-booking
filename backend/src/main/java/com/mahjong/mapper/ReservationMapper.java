@@ -17,6 +17,9 @@ public interface ReservationMapper {
   /** 查詢某用戶的所有未來 CONFIRMED 預約 */
   List<Reservation> findUpcomingByUser(String lineUserId);
 
+  /** 查詢某用戶的歷史記錄（已結束 + 已取消，最近 20 筆） */
+  List<Reservation> findHistoryByUser(String lineUserId);
+
   /** 查詢用戶在某場次的預約 */
   Reservation findBySessionAndUser(@Param("sessionId") Long sessionId,
       @Param("lineUserId") String lineUserId);

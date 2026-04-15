@@ -188,6 +188,13 @@ public class ApiController {
     return reservationService.getMyReservations(userId);
   }
 
+  /** 查詢自己的歷史記錄（已結束 + 已取消） */
+  @GetMapping("/reservations/my/history")
+  public List<Reservation> getMyHistory(@RequestHeader("Authorization") String auth) {
+    String userId = authService.extractUserId(auth);
+    return reservationService.getMyHistory(userId);
+  }
+
   /** 用戶取消自己的預約（管理員可取消任意） */
   @DeleteMapping("/reservations/{id}")
   public void cancelReservation(

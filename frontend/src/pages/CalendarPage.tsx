@@ -14,7 +14,9 @@ interface DayInfo {
   sessions: Session[]
 }
 
-function buildCalendarDays(sessions: Session[], year: number, month: number): DayInfo[] {
+function buildCalendarDays(
+  sessions: Session[], year: number, month: number, today: string
+): DayInfo[] {
   const byDate: Record<string, Session[]> = {}
   for (const s of sessions) {
     if (!byDate[s.sessionDate]) byDate[s.sessionDate] = []
@@ -26,6 +28,9 @@ function buildCalendarDays(sessions: Session[], year: number, month: number): Da
     const d = new Date(year, month, i + 1)
     const date = toISODate(d)
     const daySessions = byDate[date] ?? []
+
+    // 過去日期一律不顯示場次顏色
+    if (date < today) return { date, status: 'none', sessions: daySessions }
 
     let status: DayStatus = 'none'
     if (daySessions.length > 0) {
@@ -74,7 +79,7 @@ export default function CalendarPage() {
     getSessions(from, to).then(setSessions).catch((e) => logError("load failed", e))
   }, [viewYear, viewMonth])
 
-  const days = buildCalendarDays(sessions, viewYear, viewMonth)
+  const days = buildCalendarDays(sessions, viewYear, viewMonth, today)
   const firstDow = new Date(viewYear, viewMonth, 1).getDay()
 
   function prevMonth() {

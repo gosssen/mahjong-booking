@@ -28,7 +28,8 @@ function AppRoutes() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <main className="flex-1 pb-16">
+      {/* 底部 nav 高度：一般用戶 1 排 56px (pb-14)，管理員 2 排 112px (pb-28) */}
+      <main className={`flex-1 ${isAdmin ? 'pb-28' : 'pb-14'}`}>
         <Routes>
           <Route path="/" element={<Navigate to="/calendar" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
@@ -47,66 +48,56 @@ function AppRoutes() {
       </main>
 
       {/* ── 底部導覽列 ── */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex overflow-x-auto">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
 
-        {/* 共用：預約月曆 */}
-        <NavLink to="/calendar" className={({ isActive }) =>
-          `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-        }>
-          <span className="text-xl">📅</span>預約
-        </NavLink>
-
-        {/* 共用：我的預約 */}
-        <NavLink to="/my" className={({ isActive }) =>
-          `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-        }>
-          <span className="text-xl">📋</span>我的預約
-        </NavLink>
-
-        {/* 一般用戶：申請場次（管理員不顯示） */}
-        {!isAdmin && (
-          <NavLink to="/session-requests" className={({ isActive }) =>
-            `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-          }>
-            <span className="text-xl">📝</span>申請場次
-          </NavLink>
-        )}
-
-        {/* 管理員專屬 */}
-        {isAdmin && (
+        {isAdmin ? (
+          /* 管理員：2 排 */
           <>
-            <NavLink to="/admin/sessions" className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-            }>
-              <span className="text-xl">⚙️</span>場次
-            </NavLink>
-
-            <NavLink to="/admin/tables" className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-            }>
-              <span className="text-xl">🀄</span>桌位
-            </NavLink>
-
-            <NavLink to="/admin/push" className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-            }>
-              <span className="text-xl">📢</span>推播
-            </NavLink>
-
-            {/* 場次申請審核 */}
-            <NavLink to="/admin/session-requests" className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-            }>
-              <span className="text-xl">✅</span>申請審核
-            </NavLink>
-
-            {/* 成員權限管理 */}
-            <NavLink to="/admin/admins" className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 min-w-[52px] ${isActive ? 'text-green-600' : 'text-gray-400'}`
-            }>
-              <span className="text-xl">👥</span>成員管理
-            </NavLink>
+            {/* 排 1：常用功能 */}
+            <div className="flex border-b border-gray-100">
+              {[
+                { to: '/calendar',        icon: '📅', label: '預約' },
+                { to: '/my',             icon: '📋', label: '我的預約' },
+                { to: '/admin/sessions', icon: '⚙️', label: '場次' },
+                { to: '/admin/tables',   icon: '🀄', label: '桌位' },
+              ].map(({ to, icon, label }) => (
+                <NavLink key={to} to={to} className={({ isActive }) =>
+                  `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+                }>
+                  <span className="text-xl">{icon}</span>{label}
+                </NavLink>
+              ))}
+            </div>
+            {/* 排 2：管理功能 */}
+            <div className="flex">
+              {[
+                { to: '/admin/push',             icon: '📢', label: '推播' },
+                { to: '/admin/session-requests', icon: '✅', label: '申請審核' },
+                { to: '/admin/admins',           icon: '👥', label: '成員管理' },
+              ].map(({ to, icon, label }) => (
+                <NavLink key={to} to={to} className={({ isActive }) =>
+                  `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+                }>
+                  <span className="text-xl">{icon}</span>{label}
+                </NavLink>
+              ))}
+            </div>
           </>
+        ) : (
+          /* 一般用戶：1 排 3 項 */
+          <div className="flex">
+            {[
+              { to: '/calendar',          icon: '📅', label: '預約' },
+              { to: '/my',               icon: '📋', label: '我的預約' },
+              { to: '/session-requests', icon: '📝', label: '申請場次' },
+            ].map(({ to, icon, label }) => (
+              <NavLink key={to} to={to} className={({ isActive }) =>
+                `flex-1 flex flex-col items-center py-2 text-xs gap-0.5 ${isActive ? 'text-green-600' : 'text-gray-400'}`
+              }>
+                <span className="text-xl">{icon}</span>{label}
+              </NavLink>
+            ))}
+          </div>
         )}
       </nav>
     </div>

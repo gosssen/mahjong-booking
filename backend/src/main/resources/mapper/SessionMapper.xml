@@ -74,6 +74,13 @@
     <include refid="fullJoin"/>
     WHERE s.session_date BETWEEN #{from} AND #{to}
       AND s.status = 'OPEN'
+      AND (
+        s.session_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+        OR (
+          s.session_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::date
+          AND s.start_time > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')::time
+        )
+      )
     ORDER BY s.session_date, s.start_time, t.table_number
   </select>
 

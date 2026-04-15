@@ -50,6 +50,11 @@ export async function getMyReservations(): Promise<Reservation[]> {
   return res.data
 }
 
+export async function getMyReservationHistory(): Promise<Reservation[]> {
+  const res = await api.get<Reservation[]>('/api/reservations/my/history')
+  return res.data
+}
+
 export async function cancelReservation(id: number, reason?: string): Promise<void> {
   await api.delete(`/api/reservations/${id}`, { data: { reason } })
 }

@@ -96,6 +96,11 @@ public class ReservationService {
     return reservationMapper.findUpcomingByUser(lineUserId);
   }
 
+  /** 查詢用戶歷史記錄（已結束場次 + 已取消），最近 20 筆 */
+  public List<Reservation> getMyHistory(String lineUserId) {
+    return reservationMapper.findHistoryByUser(lineUserId);
+  }
+
   /** 查詢某場次所有預約（管理員用） */
   public List<Reservation> getBySession(Long sessionId) {
     return reservationMapper.findBySessionId(sessionId);
