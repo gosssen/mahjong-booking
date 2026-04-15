@@ -7,14 +7,18 @@ LINE Bot + LIFF 麻將場次預約系統，適合小圈子（約 20 人）使用
 ### 用戶
 - Rich Menu 快速入口：預約場次、我的預約、查看下一場
 - 月曆選擇場次與桌位（點擊無場次日期可申請開場）
-- 查看 / 取消自己的預約
+- **攜伴預約**：可一次為多位未加入群組的朋友訂位（+1~+3 位），同一組佔用連續座位
+- 查看 / 取消自己的預約（分「預約中 / 已結束 / 已取消」三分類，已結束與已取消可折疊）
 - **場次申請**：向管理員申請在指定日期 / 時間開場，管理員核准後自動開放預約並推播通知
 - 開打前 1 小時自動提醒推播
+- 月曆顯示僅包含尚未開始的場次（以台灣時區判斷）
 
 ### 管理員
-- 建立 / 取消場次（取消後同時段可重新建立）
+- 建立 / 取消場次（取消後同時段可重新建立）；不允許建立已過去時間的場次
 - 追加 / 移除桌位
-- 視覺化桌位配置（換桌 / 移桌）
+- **視覺化桌位配置**：
+  - 人員格：點選後可對調或移桌
+  - 朋友格（含 +N 的攜伴）：點選後可將該朋友獨立拆出並移至另一桌
 - 封鎖日期
 - 推播通知（每月 200 則上限）
 - **管理員帳號管理**：從用戶名單直接設定 / 取消管理員身分
@@ -71,6 +75,7 @@ mvn spring-boot:run -Dspring.profiles.active=local
 cd frontend
 npm install
 echo "VITE_API_BASE_URL=http://localhost:8080" > .env.local
+echo "VITE_LIFF_ID=<your-liff-id>" >> .env.local
 npm run dev
 ```
 
@@ -98,11 +103,12 @@ npm run dev
 
 | 變數 | 說明 |
 |------|------|
-| `VITE_API_BASE_URL` | 後端 API 網址（`https://xxx.fly.dev`） |
+| `VITE_API_BASE_URL` | 後端 API 網址（`https://mahjong-backend-xxx.onrender.com`） |
+| `VITE_LIFF_ID` | LINE LIFF ID（格式：`xxxxxxxxx-xxxxxxxx`） |
 
 ## 資料庫遷移（已有舊資料庫時）
 
-若已有舊版資料庫，需執行以下遷移 SQL：
+若已有舊版資料庫，需依序執行以下遷移 SQL（新建資料庫直接跑 `schema.sql` 即可）：
 
 ```sql
 -- 1. 移除舊的 inline UNIQUE 約束，改用 partial unique index
@@ -111,7 +117,7 @@ ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_session_date_start_time_
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_date_time_open
   ON sessions(session_date, start_time) WHERE status = 'OPEN';
 
--- 2. 新增場次申請表
+-- 2. 新增場次申請表（v1 → v2）
 CREATE TABLE IF NOT EXISTS session_requests (
   id           BIGSERIAL    PRIMARY KEY,
   line_user_id VARCHAR(64)  NOT NULL,
@@ -128,6 +134,12 @@ CREATE TABLE IF NOT EXISTS session_requests (
 
 CREATE INDEX IF NOT EXISTS idx_session_requests_user   ON session_requests(line_user_id);
 CREATE INDEX IF NOT EXISTS idx_session_requests_status ON session_requests(status);
+
+-- 3. 攜伴預約功能（2026-04）
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS guest_count SMALLINT NOT NULL DEFAULT 0;
+
+-- 4. 朋友獨立移桌（2026-04）
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS guest_label VARCHAR(100);
 ```
 
 ## LINE 設定
@@ -135,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_session_requests_status ON session_requests(statu
 1. **Messaging API Channel**（[LINE Developers Console](https://developers.line.biz)）
    - 建立 Provider → Messaging API Channel
    - 取得 Channel Access Token 與 Channel Secret
-   - Webhook URL 設定為 `https://<your-app>.fly.dev/callback`
+   - Webhook URL 設定為 `https://mahjong-backend-xxx.onrender.com/callback`
    - 關閉自動回覆：[LINE OA Manager](https://manager.line.biz) → 回應設定 → Bot 模式
 
 2. **LINE Login Channel + LIFF**（[LINE Developers Console](https://developers.line.biz)）
@@ -147,33 +159,50 @@ CREATE INDEX IF NOT EXISTS idx_session_requests_status ON session_requests(statu
    - 設定環境變數後執行 `python3 setup-richmenu.py`
    - 或透過 [LINE OA Manager](https://manager.line.biz) → 圖文選單 手動設定
 
-## API 端點摘要
+## API 端點
 
-### 用戶端
+### 用戶端（需 Authorization header）
 
 | 方法 | 路徑 | 說明 |
 |------|------|------|
 | `GET` | `/api/me` | 取得當前用戶資料（含 admin / developer 標記） |
-| `GET` | `/api/sessions` | 查詢 OPEN 場次（月曆用） |
-| `POST` | `/api/reservations` | 預約桌位 |
-| `GET` | `/api/reservations/my` | 查詢我的預約 |
+| `GET` | `/api/sessions` | 查詢 OPEN 場次（月曆用，已過時段自動過濾） |
+| `GET` | `/api/sessions/{id}` | 查詢單一場次詳細 |
+| `GET` | `/api/blocked-dates` | 查詢封鎖日期 |
+| `POST` | `/api/reservations` | 預約桌位（`{sessionId, tableId, guestCount}`） |
+| `GET` | `/api/reservations/my` | 查詢我的未來預約 |
+| `GET` | `/api/reservations/my/history` | 查詢我的歷史記錄（已結束 + 已取消，最近 20 筆） |
 | `DELETE` | `/api/reservations/{id}` | 取消預約 |
 | `POST` | `/api/session-requests` | 送出場次申請 |
 | `GET` | `/api/session-requests/my` | 查詢我的申請記錄 |
 
-### 管理員端
+### 管理員端（需為管理員）
 
 | 方法 | 路徑 | 說明 |
 |------|------|------|
-| `GET` | `/api/users` | 查詢所有用戶名單（管理員選取用） |
-| `POST` | `/api/sessions` | 建立場次 |
-| `DELETE` | `/api/sessions/{id}` | 取消場次 |
+| `GET` | `/api/users` | 查詢所有用戶名單 |
+| `POST` | `/api/sessions` | 建立場次（`{date, startTime}`） |
+| `PUT` | `/api/sessions/{id}/time` | 修改場次時間 |
+| `DELETE` | `/api/sessions/{id}` | 取消場次（含推播） |
+| `POST` | `/api/sessions/{id}/tables` | 追加一桌 |
+| `DELETE` | `/api/sessions/{id}/tables/{tableId}` | 移除空桌 |
+| `GET` | `/api/sessions/{id}/reservations` | 查詢場次所有預約 |
+| `POST` | `/api/sessions/{id}/push` | 推播訊息給場次所有預約者 |
+| `POST` | `/api/reservations/swap` | 對調兩人桌位 |
+| `PUT` | `/api/reservations/{id}/table` | 將某人移至指定桌 |
+| `POST` | `/api/reservations/{id}/split-guest` | 將攜伴中的一位朋友拆出並移至指定桌 |
+| `DELETE` | `/api/reservations/{id}` | 取消任意預約 |
+| `GET` | `/api/blocked-dates` | 查詢封鎖日期 |
+| `POST` | `/api/blocked-dates` | 封鎖日期 |
+| `DELETE` | `/api/blocked-dates/{id}` | 解除封鎖 |
+| `GET` | `/api/push-quota` | 查詢本月推播用量 |
 | `GET` | `/api/session-requests/pending` | 查詢待審核申請 |
-| `GET` | `/api/session-requests` | 查詢所有申請 |
+| `GET` | `/api/session-requests` | 查詢所有申請記錄 |
 | `POST` | `/api/session-requests/{id}/review` | 核准或拒絕申請 |
 | `GET` | `/api/admins` | 查詢管理員名單 |
-| `POST` | `/api/admins/by-user/{lineUserId}` | 設定用戶為管理員 |
-| `DELETE` | `/api/admins/by-user/{lineUserId}` | 取消用戶管理員身分 |
+| `POST` | `/api/admins/by-user/{lineUserId}` | 設定管理員 |
+| `DELETE` | `/api/admins/by-user/{lineUserId}` | 取消管理員 |
+| `POST` | `/api/richmenu/activate` | 從伺服器端啟動 Rich Menu |
 
 ## 相關服務連結
 

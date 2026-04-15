@@ -150,8 +150,26 @@ ngrok http 8080
 # 查看 logs
 # Render Dashboard → mahjong-backend → Logs
 
-# 部署新版本（push 到 GitHub main 即自動觸發）
-git push
+# 部署新版本（push 到 GitHub main 即自動觸發後端，前端需另跑）
+git push           # 觸發 Render 後端重新部署
+vercel --prod      # 重新部署前端到 Vercel
+
+# 注意：若 push 失敗（workflow scope），先執行：
+gh auth refresh -h github.com -s workflow
+```
+
+## DB 遷移
+
+每次有 schema 異動時，到 Supabase SQL Editor 執行對應的 ALTER 語句。
+遷移語句統一記錄在 `backend/src/main/resources/schema.sql` 最底部的「遷移腳本」區塊。
+
+累積遷移（2026-04，依序執行）：
+```sql
+-- 攜伴功能：一人可為多位朋友訂位
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS guest_count SMALLINT NOT NULL DEFAULT 0;
+
+-- 朋友獨立移桌：拆出的朋友記錄需顯示名稱
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS guest_label VARCHAR(100);
 ```
 
 ---
@@ -167,7 +185,8 @@ git push
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://db.xxx.supabase.co:5432/postgres` |
 | `SPRING_DATASOURCE_USERNAME` | DB 帳號（通常是 `postgres`） |
 | `SPRING_DATASOURCE_PASSWORD` | DB 密碼 |
-| `INITIAL_ADMIN_USER_ID` | 初始管理員 LINE userId |
+| `INITIAL_ADMIN_USER_ID` | 初始管理員 LINE userId（DB 空時自動建立） |
+| `DEVELOPER_USER_ID` | 開發人員 LINE userId（永久管理員，無法被移除） |
 | `RICH_MENU_ID` | LINE Rich Menu ID |
 | `CORS_ALLOWED_ORIGINS` | 前端 Vercel 網址 |
 
