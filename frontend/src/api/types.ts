@@ -48,6 +48,7 @@ export interface Reservation {
   tableId: number
   lineUserId: string
   guestCount: number      // 攜帶朋友數（不含本人），預設 0
+  guestLabel: string | null  // 拆出的朋友顯示名稱，null 表示正常 LINE 用戶
   status: string
   displayName: string | null
   sessionDate: string

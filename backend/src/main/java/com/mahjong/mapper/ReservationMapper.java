@@ -37,6 +37,9 @@ public interface ReservationMapper {
   /** 更新桌位（管理員對調 / 移桌用） */
   void updateTableId(@Param("id") Long id, @Param("tableId") Long tableId);
 
+  /** 將攜伴數減 1（拆出一位朋友時使用） */
+  void decrementGuestCount(@Param("id") Long id);
+
   /** 用戶換桌，同時更新攜伴人數 */
   void updateTableAndGuests(@Param("id") Long id, @Param("tableId") Long tableId,
       @Param("guestCount") int guestCount);

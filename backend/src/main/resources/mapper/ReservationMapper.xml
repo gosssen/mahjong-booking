@@ -10,6 +10,7 @@
     <result property="tableId"          column="table_id"/>
     <result property="lineUserId"       column="line_user_id"/>
     <result property="guestCount"       column="guest_count"/>
+    <result property="guestLabel"       column="guest_label"/>
     <result property="status"           column="status"/>
     <result property="cancelledBy"      column="cancelled_by"/>
     <result property="cancelNote"       column="cancel_note"/>
@@ -21,8 +22,9 @@
     <result property="tableNumber"      column="table_number"/>
   </resultMap>
 
+  <!-- display_name 優先用 LINE 名稱，朋友記錄 fallback 到 guest_label -->
   <sql id="selectWithUser">
-    SELECT r.*, u.display_name
+    SELECT r.*, COALESCE(u.display_name, r.guest_label) AS display_name
     FROM reservations r
     LEFT JOIN users u ON u.line_user_id = r.line_user_id
   </sql>
@@ -100,9 +102,16 @@
   </select>
 
   <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO reservations (session_id, table_id, line_user_id, guest_count)
-    VALUES (#{sessionId}, #{tableId}, #{lineUserId}, #{guestCount})
+    INSERT INTO reservations (session_id, table_id, line_user_id, guest_count, guest_label)
+    VALUES (#{sessionId}, #{tableId}, #{lineUserId}, #{guestCount}, #{guestLabel})
   </insert>
+
+  <update id="decrementGuestCount">
+    UPDATE reservations
+    SET guest_count = guest_count - 1,
+        updated_at  = NOW()
+    WHERE id = #{id}
+  </update>
 
   <update id="cancelByUser">
     UPDATE reservations

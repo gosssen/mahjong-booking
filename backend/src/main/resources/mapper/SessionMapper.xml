@@ -11,6 +11,7 @@
     <result property="tableId"     column="r_table_id"/>
     <result property="lineUserId"  column="r_line_user_id"/>
     <result property="guestCount"  column="r_guest_count"/>
+    <result property="guestLabel"  column="r_guest_label"/>
     <result property="status"      column="r_status"/>
     <result property="cancelledBy" column="r_cancelled_by"/>
     <result property="cancelNote"  column="r_cancel_note"/>
@@ -58,12 +59,13 @@
       r.table_id     AS r_table_id,
       r.line_user_id AS r_line_user_id,
       r.guest_count  AS r_guest_count,
+      r.guest_label  AS r_guest_label,
       r.status       AS r_status,
       r.cancelled_by AS r_cancelled_by,
       r.cancel_note  AS r_cancel_note,
       r.created_at   AS r_created_at,
       r.updated_at   AS r_updated_at,
-      u.display_name AS u_display_name
+      COALESCE(u.display_name, r.guest_label) AS u_display_name
     FROM sessions s
     LEFT JOIN mahjong_tables t  ON t.session_id = s.id
     LEFT JOIN reservations   r  ON r.table_id   = t.id AND r.status = 'CONFIRMED'

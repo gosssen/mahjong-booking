@@ -227,6 +227,17 @@ public class ApiController {
     reservationService.swapTables(req.reservationId1(), req.reservationId2(), userId);
   }
 
+  /** 管理員將某人的一位朋友拆出並移至指定桌 */
+  @PostMapping("/reservations/{id}/split-guest")
+  @ResponseStatus(HttpStatus.CREATED)
+  public Reservation splitGuest(
+      @RequestHeader("Authorization") String auth,
+      @PathVariable Long id,
+      @RequestBody MoveTableRequest req) {
+    String userId = requireAdmin(auth);
+    return reservationService.splitGuest(id, req.tableId(), userId);
+  }
+
   /** 管理員將某人移至指定桌 */
   @PutMapping("/reservations/{id}/table")
   public void moveToTable(

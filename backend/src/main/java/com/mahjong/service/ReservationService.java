@@ -7,6 +7,7 @@ import com.mahjong.model.MahjongTable;
 import com.mahjong.model.Reservation;
 import com.mahjong.model.Session;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -190,6 +191,51 @@ public class ReservationService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found");
     }
     return res;
+  }
+
+  /**
+   * 管理員將某人的一位朋友獨立拆至目標桌。
+   * 操作：source guest_count - 1，目標桌建一筆朋友獨立記錄。
+   */
+  @Transactional
+  public Reservation splitGuest(Long reservationId, Long targetTableId, String adminUserId) {
+    Reservation source = getReservationOrThrow(reservationId);
+    if (!"CONFIRMED".equals(source.getStatus())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reservation is not active");
+    }
+    if (source.getGuestCount() == null || source.getGuestCount() <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No guests to split");
+    }
+
+    MahjongTable target = tableMapper.findById(targetTableId);
+    if (target == null || !target.getSessionId().equals(source.getSessionId())) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Target table not found in session");
+    }
+
+    List<Reservation> targetSeated = reservationMapper.findConfirmedByTableId(targetTableId);
+    int targetOccupied = targetSeated.stream().mapToInt(ReservationService::guestSeats).sum();
+    if (targetOccupied + 1 > 4) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Target table is full");
+    }
+
+    // 來源減一位朋友
+    reservationMapper.decrementGuestCount(source.getId());
+
+    // 在目標桌建立朋友獨立記錄
+    String sourceName = source.getDisplayName() != null ? source.getDisplayName() : "訪客";
+    String guestLabel = sourceName + " 的朋友";
+    String guestUserId = "guest_" + UUID.randomUUID().toString().replace("-", "");
+
+    Reservation guest = new Reservation();
+    guest.setSessionId(source.getSessionId());
+    guest.setTableId(targetTableId);
+    guest.setLineUserId(guestUserId);
+    guest.setGuestCount(0);
+    guest.setGuestLabel(guestLabel);
+    reservationMapper.insert(guest);
+
+    log.info("Guest split: source res={} → table={} by admin={}", reservationId, targetTableId, adminUserId);
+    return reservationMapper.findById(guest.getId());
   }
 
   /** 計算一筆預約佔用的座位數（本人 + 攜伴） */

@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   table_id     BIGINT       NOT NULL REFERENCES mahjong_tables(id),
   line_user_id VARCHAR(64)  NOT NULL,
   guest_count  SMALLINT     NOT NULL DEFAULT 0,            -- 額外攜帶的朋友人數（不含本人）
+  guest_label  VARCHAR(100),                               -- 拆出的朋友顯示名稱（非 LINE 用戶專用）
   status       VARCHAR(20)  NOT NULL DEFAULT 'CONFIRMED',  -- CONFIRMED / CANCELLED
   cancelled_by VARCHAR(64),
   cancel_note  VARCHAR(200),
@@ -111,4 +112,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_date_time_open
 --   CREATE TABLE IF NOT EXISTS session_requests ( ... 同上 ... );
 -- 加入攜伴欄位（2026-04 之後的遷移）：
 --   ALTER TABLE reservations ADD COLUMN IF NOT EXISTS guest_count SMALLINT NOT NULL DEFAULT 0;
+--   ALTER TABLE reservations ADD COLUMN IF NOT EXISTS guest_label VARCHAR(100);
 -- ============================================================

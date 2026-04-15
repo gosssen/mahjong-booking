@@ -72,6 +72,11 @@ export async function moveToTable(reservationId: number, tableId: number): Promi
   await api.put(`/api/reservations/${reservationId}/table`, { tableId })
 }
 
+export async function splitGuest(reservationId: number, targetTableId: number): Promise<Reservation> {
+  const res = await api.post<Reservation>(`/api/reservations/${reservationId}/split-guest`, { tableId: targetTableId })
+  return res.data
+}
+
 export async function getBlockedDates(from?: string, to?: string) {
   const res = await api.get('/api/blocked-dates', { params: { from, to } })
   return res.data
