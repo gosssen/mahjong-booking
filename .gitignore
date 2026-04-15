@@ -16,6 +16,8 @@ frontend/.env.vercel.production
 
 # Claude Code 私人開發指引（含憑證，不公開）
 CLAUDE.md
+# 個人設定（不 commit，含個人 token 等）
+.claude/settings.local.json
 
 # OS
 .DS_Store

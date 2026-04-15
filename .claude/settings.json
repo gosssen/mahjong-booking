@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn compile*)",
+      "Bash(mvn test*)",
+      "Bash(mvn spring-boot:run*)",
+      "Bash(mvn package*)",
+      "Bash(mvn -q*)",
+      "Bash(npm install*)",
+      "Bash(npm run build*)",
+      "Bash(npm run dev*)",
+      "Bash(npx tsc*)",
+      "Bash(vercel --prod*)",
+      "Bash(vercel ls*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git push origin main*)",
+      "Bash(git remote*)",
+      "Bash(gh auth token*)",
+      "Bash(gh auth status*)",
+      "Bash(gh pr*)",
+      "Bash(mkdir -p .claude*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git checkout -- *)",
+      "Bash(rm -rf /*))"
+    ]
+  }
+}
