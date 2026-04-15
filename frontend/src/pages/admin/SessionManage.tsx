@@ -165,7 +165,8 @@ export default function SessionManage() {
         <p className="text-center text-gray-400 py-8">目前無場次</p>
       ) : (
         sessions.map(s => {
-          const taken = s.tables.reduce((a, t) => a + (t.reservations?.length ?? 0), 0)
+          const taken = s.tables.reduce((a, t) =>
+            a + (t.reservations ?? []).reduce((sum, r) => sum + 1 + (r.guestCount ?? 0), 0), 0)
           const total = s.tables.length * 4
           return (
             <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-3">
@@ -185,8 +186,8 @@ export default function SessionManage() {
               {/* Tables */}
               <div className="mt-3 space-y-1">
                 {s.tables.map(t => {
-                  const count = t.reservations?.length ?? 0
-                  const isEmpty = count === 0
+                  const count = (t.reservations ?? []).reduce((sum, r) => sum + 1 + (r.guestCount ?? 0), 0)
+                  const isEmpty = (t.reservations?.length ?? 0) === 0
                   return (
                     <div key={t.id} className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">第 {t.tableNumber} 桌 ({count}/4 人)</span>

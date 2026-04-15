@@ -134,29 +134,47 @@ export default function TableLayout() {
       ) : (
         selectedSession.tables.map(t => {
           const seated = byTable[t.id] ?? []
-          const emptySlots = 4 - seated.length
+          const occupiedSeats = seated.reduce((a, r) => a + 1 + (r.guestCount ?? 0), 0)
+          const emptySlots = 4 - occupiedSeats
           return (
             <div
               key={t.id}
               className={`bg-white rounded-xl border shadow-sm p-4 mb-3 ${selected && selected.tableId !== t.id ? 'border-blue-300 cursor-pointer hover:bg-blue-50' : 'border-gray-100'}`}
               onClick={() => selected && selected.tableId !== t.id && handleMoveToTable(t.id)}
             >
-              <p className="font-medium text-gray-700 mb-2">第 {t.tableNumber} 桌 ({seated.length}/4)</p>
+              <p className="font-medium text-gray-700 mb-2">第 {t.tableNumber} 桌 ({occupiedSeats}/4)</p>
               <div className="grid grid-cols-2 gap-2">
                 {seated.map(res => (
-                  <div
-                    key={res.id}
-                    onClick={e => { e.stopPropagation(); handleSelectPerson(res) }}
-                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition-colors text-sm
-                      ${selected?.id === res.id ? 'bg-blue-200 border-blue-400 border' : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'}`}
-                  >
-                    <span className="truncate">{res.displayName ?? res.lineUserId}</span>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleCancelReservation(res) }}
-                      className="ml-1 text-gray-300 hover:text-red-400 text-xs shrink-0"
-                      title="取消預約"
-                    >✕</button>
-                  </div>
+                  <>
+                    {/* 本人格子（可選取/對調/取消） */}
+                    <div
+                      key={res.id}
+                      onClick={e => { e.stopPropagation(); handleSelectPerson(res) }}
+                      className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition-colors text-sm
+                        ${selected?.id === res.id ? 'bg-blue-200 border-blue-400 border' : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'}`}
+                    >
+                      <span className="truncate">
+                        {res.displayName ?? res.lineUserId}
+                        {(res.guestCount ?? 0) > 0 && (
+                          <span className="text-xs text-blue-500 ml-1">(+{res.guestCount})</span>
+                        )}
+                      </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleCancelReservation(res) }}
+                        className="ml-1 text-gray-300 hover:text-red-400 text-xs shrink-0"
+                        title="取消預約"
+                      >✕</button>
+                    </div>
+                    {/* 攜伴佔位格（僅顯示，不可互動） */}
+                    {Array.from({ length: res.guestCount ?? 0 }, (_, gi) => (
+                      <div
+                        key={`guest-${res.id}-${gi}`}
+                        className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-400 text-center"
+                      >
+                        {res.displayName ?? '?'} 的朋友
+                      </div>
+                    ))}
+                  </>
                 ))}
                 {Array.from({ length: emptySlots }, (_, i) => (
                   <div key={`empty-${i}`} className="rounded-lg border border-dashed border-gray-200 px-3 py-2 text-sm text-gray-300 text-center">

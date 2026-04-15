@@ -45,6 +45,8 @@ export default function MyReservations() {
   const [history, setHistory] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState<number | null>(null)
+  const [showPast, setShowPast] = useState(false)
+  const [showCancelled, setShowCancelled] = useState(false)
 
   function load() {
     setLoading(true)
@@ -108,14 +110,21 @@ export default function MyReservations() {
         </section>
       )}
 
-      {/* 已結束 */}
+      {/* 已結束（可折疊） */}
       {past.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-400 mb-2 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
-            已結束
-          </h2>
-          {past.map(r => (
+          <button
+            onClick={() => setShowPast(v => !v)}
+            className="w-full flex items-center justify-between mb-2"
+          >
+            <span className="text-sm font-semibold text-gray-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+              已結束
+              <span className="text-gray-300 font-normal">（{past.length} 筆）</span>
+            </span>
+            <span className="text-xs text-gray-400">{showPast ? '▲ 收起' : '▼ 展開'}</span>
+          </button>
+          {showPast && past.map(r => (
             <ReservationCard
               key={r.id}
               r={r}
@@ -127,14 +136,21 @@ export default function MyReservations() {
         </section>
       )}
 
-      {/* 已取消 */}
+      {/* 已取消（可折疊） */}
       {cancelled.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-            已取消
-          </h2>
-          {cancelled.map(r => (
+          <button
+            onClick={() => setShowCancelled(v => !v)}
+            className="w-full flex items-center justify-between mb-2"
+          >
+            <span className="text-sm font-semibold text-red-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+              已取消
+              <span className="text-red-300 font-normal">（{cancelled.length} 筆）</span>
+            </span>
+            <span className="text-xs text-gray-400">{showCancelled ? '▲ 收起' : '▼ 展開'}</span>
+          </button>
+          {showCancelled && cancelled.map(r => (
             <ReservationCard
               key={r.id}
               r={r}

@@ -215,14 +215,12 @@ export default function CalendarPage() {
             return (
               <button
                 key={s.id}
-                onClick={() => !isFull && setSelectedSession(s)}
-                disabled={isFull}
-                className={`w-full text-left p-3 mb-2 rounded-lg border bg-white transition-colors
-                  ${isFull ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-50 border-gray-200'}`}
+                onClick={() => setSelectedSession(s)}
+                className={`w-full text-left p-3 mb-2 rounded-lg border bg-white transition-colors hover:bg-gray-50 border-gray-200`}
               >
                 <span className="font-medium">{s.startTime.slice(0, 5)}</span>
-                <span className={`ml-2 text-sm ${isFull ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {isFull ? '已滿桌' : `剩 ${remaining} 位`}
+                <span className={`ml-2 text-sm ${isFull ? 'text-red-400' : 'text-gray-500'}`}>
+                  {isFull ? '已滿桌（查看成員）' : `剩 ${remaining} 位`}
                 </span>
               </button>
             )
@@ -238,31 +236,42 @@ export default function CalendarPage() {
             {formatSession(selectedSession.sessionDate, selectedSession.startTime)} — 選桌
           </h2>
 
-          {/* 攜伴人數選擇 */}
-          <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
-            <p className="text-sm text-blue-700 font-medium mb-2">帶幾位朋友一起來？</p>
-            <div className="flex gap-2">
-              {[0, 1, 2, 3].map(n => (
-                <button
-                  key={n}
-                  onClick={() => setGuestCount(n)}
-                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors
-                    ${guestCount === n
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}
-                >
-                  {n === 0 ? '只有我' : `+${n} 位`}
-                </button>
-              ))}
-            </div>
-            {guestCount > 0 && (
-              <p className="text-xs text-blue-500 mt-1.5">共佔 {1 + guestCount} 個座位</p>
-            )}
-          </div>
+          {/* 整場已滿時顯示查看提示 */}
+          {(() => {
+            const isSessionFull = selectedSession.tables.every(t => seatsLeft(t) === 0)
+            return isSessionFull ? (
+              <div className="mb-3 p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-500 text-center">
+                此場次已滿桌，以下為各桌成員
+              </div>
+            ) : (
+              /* 攜伴人數選擇 */
+              <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+                <p className="text-sm text-blue-700 font-medium mb-2">帶幾位朋友一起來？</p>
+                <div className="flex gap-2">
+                  {[0, 1, 2, 3].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setGuestCount(n)}
+                      className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors
+                        ${guestCount === n
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}
+                    >
+                      {n === 0 ? '只有我' : `+${n} 位`}
+                    </button>
+                  ))}
+                </div>
+                {guestCount > 0 && (
+                  <p className="text-xs text-blue-500 mt-1.5">共佔 {1 + guestCount} 個座位</p>
+                )}
+              </div>
+            )
+          })()}
 
           {selectedSession.tables.map(table => {
             const left = seatsLeft(table)
-            const canBook = left >= 1 + guestCount
+            const isSessionFull = selectedSession.tables.every(t => seatsLeft(t) === 0)
+            const canBook = !isSessionFull && left >= 1 + guestCount
             const members = table.reservations?.map(r => {
               const name = r.displayName ?? '匿名'
               return r.guestCount > 0 ? `${name}(+${r.guestCount})` : name
@@ -273,17 +282,19 @@ export default function CalendarPage() {
                 <div className="flex items-center justify-between">
                   <span className="font-medium">第 {table.tableNumber} 桌</span>
                   <span className={`text-sm ${left === 0 ? 'text-gray-400' : 'text-green-600'}`}>
-                    {4 - left}/4 人・剩 {left} 位
+                    {4 - left}/4 人{left > 0 && `・剩 ${left} 位`}
                   </span>
                 </div>
                 {members && <p className="text-xs text-gray-500 mt-1">{members}</p>}
-                <button
-                  onClick={() => handleBook(table)}
-                  disabled={!canBook || booking || !!alreadyBooked}
-                  className="mt-2 w-full py-1.5 rounded-lg text-sm font-medium bg-green-500 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-green-600 transition-colors"
-                >
-                  {alreadyBooked ? '已在此桌' : !canBook ? `空位不足（需 ${1 + guestCount} 位）` : booking ? '預約中...' : '選擇此桌'}
-                </button>
+                {!isSessionFull && (
+                  <button
+                    onClick={() => handleBook(table)}
+                    disabled={!canBook || booking || !!alreadyBooked}
+                    className="mt-2 w-full py-1.5 rounded-lg text-sm font-medium bg-green-500 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-green-600 transition-colors"
+                  >
+                    {alreadyBooked ? '已在此桌' : !canBook ? `空位不足（需 ${1 + guestCount} 位）` : booking ? '預約中...' : '選擇此桌'}
+                  </button>
+                )}
               </div>
             )
           })}
